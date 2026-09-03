@@ -1,4 +1,7 @@
 import express from "express";
+import "dotenv/config";
+
+import { testDatabaseConnection } from "./config/db";
 
 const app = express();
 
@@ -13,6 +16,12 @@ app.get("/api/health", (req, res) => {
     });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
     console.log(`ClinicWorks API running on port ${PORT}`);
+
+    try {
+        await testDatabaseConnection();
+    } catch (error) {
+        console.error("ClinicWorks database connection failed:", error);
+    }
 });
