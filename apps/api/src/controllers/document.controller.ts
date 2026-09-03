@@ -1,31 +1,30 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import {
     createDocumentService,
     getAllDocumentsService,
     getDocumentByIdService,
     retryDocumentService,
 } from "../services/document.service";
-import { randomUUID } from "crypto";
+import multer from "multer";
 
 export async function createDocument(
     req: Request,
-    res: Response
+    res: Response,
+    next: NextFunction
 ): Promise<void> {
     try {
-        const { fileName } = req.body;
-
-        if (!fileName) {
+        if (!req.file) {
             res.status(400).json({
                 status: "error",
-                message: "fileName is required",
+                message: "A PDF file is required. Send it as multipart/form-data with the field name 'file'.",
             });
             return;
         }
 
         const document = await createDocumentService({
-            id: randomUUID(),
-            file_name: fileName,
-            processing_status: "PROCESSING",
+            fileName: req.file.originalname,
+            fileBuffer: req.file.buffer,
+            mimeType: req.file.mimetype,
         });
 
         res.status(201).json({
@@ -33,14 +32,30 @@ export async function createDocument(
             document,
         });
     } catch (error) {
-        console.error("Create document error:", error);
+        if (error instanceof multer.MulterError) {
+            res.status(400).json({
+                status: "error",
+                message: error.message,
+            });
+            return;
+        }
 
+        if (error instanceof Error && error.message === "Only PDF files are accepted") {
+            res.status(400).json({
+                status: "error",
+                message: error.message,
+            });
+            return;
+        }
+
+        console.error("Create document error:", error);
         res.status(500).json({
             status: "error",
-            message: "Failed to create document",
+            message: "Failed to upload document",
         });
     }
 }
+
 
 export async function getAllDocuments(
     req: Request,

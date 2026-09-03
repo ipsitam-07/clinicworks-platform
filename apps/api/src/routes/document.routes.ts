@@ -5,11 +5,12 @@ import {
     getDocumentById,
     retryDocument,
 } from "../controllers/document.controller";
+import { uploadMiddleware } from "../middleware/upload";
 
 const router = Router();
 
-// POST /api/documents 
-router.post("/", createDocument);
+// POST /api/documents
+router.post("/", uploadMiddleware, createDocument);
 
 // GET /api/documents
 router.get("/", getAllDocuments);
@@ -21,3 +22,4 @@ router.get("/:id", getDocumentById);
 router.post("/:id/retry", retryDocument);
 
 export default router;
+

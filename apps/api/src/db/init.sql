@@ -2,6 +2,9 @@ CREATE TABLE IF NOT EXISTS documents (
     id UUID PRIMARY KEY,
     file_name VARCHAR(255) NOT NULL,
 
+    blob_name TEXT,
+    blob_url  TEXT,
+
     document_type VARCHAR(50),
     measure TEXT,
     measure_date DATE,
@@ -17,3 +20,6 @@ CREATE TABLE IF NOT EXISTS documents (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS blob_name TEXT;
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS blob_url  TEXT;

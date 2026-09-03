@@ -3,6 +3,8 @@ import { pool } from "../config/db";
 export interface DocumentRecord {
     id: string;
     file_name: string;
+    blob_name: string | null;
+    blob_url: string | null;
     document_type: string | null;
     measure: string | null;
     measure_date: string | null;
@@ -18,6 +20,8 @@ export interface DocumentRecord {
 export interface CreateDocumentInput {
     id: string;
     file_name: string;
+    blob_name: string | null;
+    blob_url: string | null;
     processing_status: string;
 }
 
@@ -40,12 +44,16 @@ export async function createDocument(
       INSERT INTO documents (
         id,
         file_name,
+        blob_name,
+        blob_url,
         processing_status
       )
-      VALUES ($1, $2, $3)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING
         id,
         file_name,
+        blob_name,
+        blob_url,
         document_type,
         measure,
         measure_date,
@@ -60,6 +68,8 @@ export async function createDocument(
         [
             document.id,
             document.file_name,
+            document.blob_name,
+            document.blob_url,
             document.processing_status
         ]
     );
@@ -73,6 +83,8 @@ export async function findAllDocuments(): Promise<DocumentRecord[]> {
       SELECT
         id,
         file_name,
+        blob_name,
+        blob_url,
         document_type,
         measure,
         measure_date,
@@ -99,6 +111,8 @@ export async function findDocumentById(
       SELECT
         id,
         file_name,
+        blob_name,
+        blob_url,
         document_type,
         measure,
         measure_date,
@@ -139,6 +153,8 @@ export async function updateDocumentProcessing(
       RETURNING
         id,
         file_name,
+        blob_name,
+        blob_url,
         document_type,
         measure,
         measure_date,
@@ -186,6 +202,8 @@ export async function resetDocumentForRetry(
       RETURNING
         id,
         file_name,
+        blob_name,
+        blob_url,
         document_type,
         measure,
         measure_date,

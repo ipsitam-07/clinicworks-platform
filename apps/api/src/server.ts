@@ -2,7 +2,9 @@ import express, { Request, Response, NextFunction } from "express";
 import "dotenv/config";
 
 import { testDatabaseConnection } from "./config/db";
+import { ensureContainerExists } from "./services/storage.service";
 import documentRoutes from "./routes/document.routes";
+
 
 const app = express();
 
@@ -37,6 +39,17 @@ app.use((_req: Request, res: Response) => {
     res.status(404).json({ status: "error", message: "Route not found" });
 });
 
+// Global error handler — catches errors thrown by middleware (e.g. multer file-type rejection)
+// Must have 4 arguments for Express to treat it as an error handler
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+    console.error("Unhandled error:", err.message);
+    res.status(400).json({
+        status: "error",
+        message: err.message || "An unexpected error occurred",
+    });
+});
+
+
 // Start
 
 app.listen(PORT, async () => {
@@ -49,8 +62,15 @@ app.listen(PORT, async () => {
 
     try {
         await testDatabaseConnection();
-        console.log("PostgreSQL connection verified\n");
+        console.log("PostgreSQL connection verified");
     } catch (error) {
         console.error("PostgreSQL connection failed:", error);
+    }
+
+    try {
+        await ensureContainerExists();
+        console.log("Blob Storage container verified\n");
+    } catch (error) {
+        console.error("Blob Storage setup failed:", error);
     }
 });
