@@ -1,0 +1,28 @@
+{
+  "name": "functions",
+  "version": "1.0.0",
+  "description": "ClinicWorks Document Extraction Azure Function",
+  "main": "dist/src/functions/*.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "prestart": "npm run build",
+    "start": "func start",
+    "dev": "tsx watch src/worker.ts",
+    "process:pending": "tsx src/runOnce.ts"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.6.0",
+    "@azure/storage-blob": "^12.26.0",
+    "dotenv": "^17.4.2",
+    "pdf-parse": "^1.1.1",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/pdf-parse": "^1.1.4",
+    "@types/pg": "^8.11.10",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
