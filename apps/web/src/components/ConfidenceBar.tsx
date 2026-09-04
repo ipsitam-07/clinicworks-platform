@@ -7,7 +7,12 @@ export function ConfidenceBar({ score }: ConfidenceBarProps) {
     return <span className="cell-muted">—</span>
   }
 
-  const pct = Math.round(score * 100)
+  const num = Number(score)
+  if (isNaN(num)) {
+    return <span className="cell-muted">—</span>
+  }
+
+  const pct = Math.round(num * 100)
   const cls = pct >= 80 ? 'high' : pct >= 50 ? 'mid' : 'low'
 
   return (

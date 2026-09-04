@@ -13,9 +13,11 @@ export function StatsOverview({ docs }: StatsOverviewProps) {
   const failedCount = docs.filter(d => d.processing_status === 'FAILED').length
 
   const avgConfidence = (() => {
-    const withScore = docs.filter(d => d.confidence_score !== null)
+    const withScore = docs.filter(
+      d => d.confidence_score !== null && d.confidence_score !== undefined && !isNaN(Number(d.confidence_score))
+    )
     if (withScore.length === 0) return null
-    const sum = withScore.reduce((acc, curr) => acc + (curr.confidence_score ?? 0), 0)
+    const sum = withScore.reduce((acc, curr) => acc + Number(curr.confidence_score), 0)
     return Math.round((sum / withScore.length) * 100)
   })()
 
