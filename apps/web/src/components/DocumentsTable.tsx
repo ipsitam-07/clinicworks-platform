@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Search, X, FolderOpen, FileText, RotateCw } from 'lucide-react'
+import { Search, X, FolderOpen, FileText, RotateCw, AlertCircle } from 'lucide-react'
 import type { Document, ProcessingStatus } from '../services/api'
 import { StatusBadge } from './StatusBadge'
 import { ConfidenceBar } from './ConfidenceBar'
@@ -26,8 +26,22 @@ function formatDateTime(iso: string): string {
     day: '2-digit',
     month: 'short',
     hour: '2-digit',
-    minute: '2-digit',
   })
+}
+
+function getShortErrorMessage(msg: string): string {
+  if (msg.includes('Could not categorize') || msg.includes('Blood Pressure or HbA1c')) {
+    return 'Unrecognized measure'
+  }
+  if (msg.includes('under 18')) return 'Patient under 18'
+  if (msg.includes('No valid current blood pressure') || msg.includes('missing systolic')) {
+    return 'No valid BP found'
+  }
+  if (msg.includes('No valid HbA1c')) return 'No valid HbA1c'
+  if (msg.includes('no extractable text')) return 'No text found'
+  if (msg.includes('no blob_name')) return 'Missing file blob'
+  if (msg.length > 25) return msg.slice(0, 23) + '…'
+  return msg
 }
 
 export function DocumentsTable({
@@ -220,12 +234,29 @@ export function DocumentsTable({
 
                   {/* Status + error */}
                   <td>
-                    <StatusBadge status={doc.processing_status as ProcessingStatus} />
-                    {doc.error_message && (
-                      <div className="error-message" title={doc.error_message}>
-                        {doc.error_message}
+                    <div className="status-cell-wrap">
+                      <div className="status-badge-row">
+                        <StatusBadge status={doc.processing_status as ProcessingStatus} />
+                        {doc.error_message && (
+                          <span
+                            className="status-error-icon"
+                            data-tooltip={doc.error_message}
+                            title={doc.error_message}
+                          >
+                            <AlertCircle size={14} />
+                          </span>
+                        )}
                       </div>
-                    )}
+                      {doc.error_message && (
+                        <div
+                          className="error-message"
+                          data-tooltip={doc.error_message}
+                          title={doc.error_message}
+                        >
+                          {getShortErrorMessage(doc.error_message)}
+                        </div>
+                      )}
+                    </div>
                   </td>
 
                   {/* Confidence */}

@@ -760,16 +760,40 @@ tbody tr:hover td {
   to { transform: rotate(360deg); }
 }
 
-/* ── Error & Feedback ─────────────────────────────────────────────────────── */
+.status-cell-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.status-badge-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.status-error-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--red);
+  cursor: help;
+  transition: transform 0.15s ease;
+}
+
+.status-error-icon:hover {
+  transform: scale(1.15);
+}
 
 .error-message {
   font-size: 11px;
+  font-weight: 500;
   color: var(--red);
-  max-width: 220px;
+  max-width: 170px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-top: 3px;
+  cursor: help;
 }
 
 .feedback {
@@ -1063,13 +1087,17 @@ tbody tr:hover td {
   bottom: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
-  background: #1e293b;
+  background: #0f172a;
   border: 1px solid #334155;
   color: #ffffff;
   font-size: 11px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  white-space: nowrap;
+  padding: 6px 10px;
+  border-radius: 6px;
+  white-space: normal;
+  width: max-content;
+  max-width: 250px;
+  text-align: center;
+  line-height: 1.35;
   z-index: 50;
   pointer-events: none;
   box-shadow: var(--shadow-md);

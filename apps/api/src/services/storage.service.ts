@@ -35,10 +35,7 @@ export async function uploadFileToBlob(
 ): Promise<UploadResult> {
     const client = getBlobServiceClient();
     const container = client.getContainerClient(CONTAINER_NAME);
-
-    const date = new Date();
-    const yearMonth = `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, "0")}`;
-    const blobName = `${yearMonth}/${documentId}/${fileName}`;
+    const blobName = `${documentId}/${fileName}`;
 
     const blobClient = container.getBlockBlobClient(blobName);
 
