@@ -4,7 +4,7 @@ import {
 } from './ai-extractor.service'
 
 export interface ClinicalEvaluationResult {
-  documentType: 'BP' | 'HbA1c' | null
+  documentType: 'BP' | 'A1C' | 'HbA1c' | null
   measure: string | null
   measureDate: string | null
   confidenceScore: number
@@ -52,13 +52,14 @@ export function evaluateBloodPressureRules(
   })
 
   if (validCandidates.length === 0) {
+    const isUnderstood = aiResult.documentType === 'BP' || aiResult.bloodPressureReadings.length > 0
     return {
       documentType: 'BP',
       measure: null,
       measureDate: aiResult.documentObservationDate || fallbackDate,
-      confidenceScore: 0,
-      status: 'FAILED',
-      errorMessage: 'No valid current blood pressure reading found (readings were missing systolic/diastolic or were marked as goals/past).',
+      confidenceScore: 0.5,
+      status: isUnderstood ? 'NEEDS_REVIEW' : 'FAILED',
+      errorMessage: 'Blood pressure reading incomplete (missing systolic or diastolic) or only non-current readings recorded.',
     }
   }
 
@@ -129,46 +130,47 @@ export function evaluateHbA1cRules(
   aiResult: RawAiExtractionResult,
   fallbackDate: string | null
 ): ClinicalEvaluationResult {
-  // Exclude goals, targets, reference intervals, historical
-  const validCandidates = aiResult.hba1cReadings.filter(r => {
-    if (r.isGoalOrTarget || r.isReferenceRange || r.isPastOrHistorical) {
+  const nonGoalNonReference = aiResult.hba1cReadings.filter(r => {
+    if (r.isGoalOrTarget || r.isReferenceRange) {
       return false
     }
     if (r.value === null || isNaN(r.value)) {
       return false
     }
-    // Biological feasibility check (typically 3.5% to 18.0%)
+    // Biological feasibility check (typically 3.0% to 20.0%)
     if (r.value < 3.0 || r.value > 20.0) {
       return false
     }
     return true
   })
 
+  const currentCandidates = nonGoalNonReference.filter(r => !r.isPastOrHistorical)
+  const validCandidates = currentCandidates.length > 0 ? currentCandidates : nonGoalNonReference
+
   if (validCandidates.length === 0) {
+    const isUnderstood = aiResult.documentType === 'HbA1c' || aiResult.hba1cReadings.length > 0
     return {
       documentType: 'HbA1c',
       measure: null,
       measureDate: aiResult.documentObservationDate || fallbackDate,
-      confidenceScore: 0,
-      status: 'FAILED',
-      errorMessage: 'No valid HbA1c observation found (values were reference ranges, goals, or historical).',
+      confidenceScore: 0.5,
+      status: isUnderstood ? 'NEEDS_REVIEW' : 'FAILED',
+      errorMessage: 'No valid HbA1c observation found (values were reference ranges, goals, or historical examples).',
     }
   }
 
-  // Multiple valid values
   const sorted = [...validCandidates].sort((a, b) => (a.value ?? 0) - (b.value ?? 0))
   const chosen = sorted[0]
   const val = chosen.value!
 
-  // Diagnostic classification
-  let classification = 'Normal'
+  let classification = ''
   if (val > 5.9) {
     classification = 'Diabetes'
   } else if (val > 5.7) {
     classification = 'Prediabetes'
   }
 
-  const measure = `${val}% (${classification})`
+  const measure = classification ? `${val}% (${classification})` : `${val}%`
   const measureDate = chosen.date || aiResult.documentObservationDate || fallbackDate
 
   // Confidence and Review Status
@@ -178,11 +180,6 @@ export function evaluateHbA1cRules(
   if (!measureDate) {
     status = 'NEEDS_REVIEW'
     confidenceScore = Math.min(confidenceScore, 0.7)
-  } else if (validCandidates.length > 1) {
-    // Noted multiple readings fallback
-    if (confidenceScore < 0.8) {
-      status = 'NEEDS_REVIEW'
-    }
   } else if (confidenceScore < 0.8) {
     status = 'NEEDS_REVIEW'
   }

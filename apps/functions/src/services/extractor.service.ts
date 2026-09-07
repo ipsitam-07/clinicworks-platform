@@ -4,7 +4,7 @@ import { extractClinicalCandidatesWithAI } from './ai-extractor.service'
 import { applyClinicalBusinessRules } from './clinical-rules.service'
 
 export interface ExtractedClinicalData {
-  documentType: 'BP' | 'HbA1c' | null
+  documentType: 'BP' | 'A1C' | 'HbA1c' | null
   measure: string | null
   measureDate: string | null // ISO YYYY-MM-DD format
   confidenceScore: number
