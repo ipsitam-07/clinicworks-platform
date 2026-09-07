@@ -4,7 +4,6 @@ import {
     findDocumentById,
     resetDocumentForRetry,
     updateDocumentProcessing,
-    type CreateDocumentInput,
     type UpdateDocumentProcessingInput,
 } from "../repository/document.repository";
 import { uploadFileToBlob, deleteFileFromBlob } from "./storage.service";
