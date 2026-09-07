@@ -4,7 +4,6 @@ import {
     findDocumentById,
     resetDocumentForRetry,
     updateDocumentProcessing,
-    type CreateDocumentInput,
     type UpdateDocumentProcessingInput,
 } from "../repository/document.repository";
 import { uploadFileToBlob, deleteFileFromBlob } from "./storage.service";
@@ -79,5 +78,23 @@ export async function retryDocumentService(id: string) {
         throw new Error("Only failed documents can be retried");
     }
 
-    return resetDocumentForRetry(id);
+    if (!document.blob_name) {
+        throw new Error("Cannot retry document: no file blob found in storage");
+    }
+
+    const resetDoc = await resetDocumentForRetry(id);
+
+    // If an Azure Function URL is configured, trigger the function HTTP endpoint
+    const functionUrl = process.env.AZURE_FUNCTION_URL;
+    if (functionUrl && resetDoc) {
+        fetch(`${functionUrl}/api/process-document`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ documentId: id }),
+        }).catch((err) => {
+            console.error("Direct Azure Function trigger on retry failed:", err);
+        });
+    }
+
+    return resetDoc;
 }
