@@ -18,6 +18,36 @@ export interface CreateDocumentServiceInput {
     mimeType: string;
 }
 
+/**
+ * Triggers the processing workflow.
+ * Priority 1: Azure Logic App 
+ */
+function triggerProcessingWorkflow(documentId: string, fileName?: string) {
+    const logicAppUrl = process.env.LOGIC_APP_URL;
+    const functionUrl = process.env.AZURE_FUNCTION_URL;
+
+    if (logicAppUrl) {
+        fetch(logicAppUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ documentId, fileName }),
+        }).catch((err) => {
+            console.error("Logic App workflow trigger failed:", err);
+        });
+        return;
+    }
+
+    if (functionUrl) {
+        fetch(`${functionUrl}/api/process-document`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ documentId }),
+        }).catch((err) => {
+            console.error("Direct Azure Function trigger failed:", err);
+        });
+    }
+}
+
 // Create
 
 export async function createDocumentService(input: CreateDocumentServiceInput) {
@@ -31,13 +61,18 @@ export async function createDocumentService(input: CreateDocumentServiceInput) {
     );
 
     try {
-        return await createDocument({
+        const createdDoc = await createDocument({
             id: documentId,
             file_name: input.fileName,
             blob_name: blobName,
             blob_url: blobUrl,
             processing_status: "PROCESSING",
         });
+
+        // Trigger the Logic App workflow immediately upon upload
+        triggerProcessingWorkflow(createdDoc.id, createdDoc.file_name);
+
+        return createdDoc;
     } catch (dbError) {
         await deleteFileFromBlob(blobName).catch((cleanupError) => {
             console.error("Failed to clean up orphaned blob:", cleanupError);
@@ -84,16 +119,9 @@ export async function retryDocumentService(id: string) {
 
     const resetDoc = await resetDocumentForRetry(id);
 
-    // If an Azure Function URL is configured, trigger the function HTTP endpoint
-    const functionUrl = process.env.AZURE_FUNCTION_URL;
-    if (functionUrl && resetDoc) {
-        fetch(`${functionUrl}/api/process-document`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ documentId: id }),
-        }).catch((err) => {
-            console.error("Direct Azure Function trigger on retry failed:", err);
-        });
+    if (resetDoc) {
+        // Trigger the exact same Logic App workflow on retry
+        triggerProcessingWorkflow(resetDoc.id, resetDoc.file_name);
     }
 
     return resetDoc;
