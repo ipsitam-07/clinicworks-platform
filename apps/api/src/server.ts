@@ -1,4 +1,6 @@
 import express, { Request, Response, NextFunction } from "express";
+import path from "path";
+import fs from "fs";
 import "dotenv/config";
 
 import { testDatabaseConnection } from "./config/db";
@@ -20,6 +22,20 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
     next();
 });
 
+// Determine web dist path (local dev, compiled dist, or packaged public directory)
+const candidateWebPaths = [
+    path.resolve(__dirname, "../../web/dist"),
+    path.resolve(__dirname, "../public"),
+    path.resolve(process.cwd(), "apps/web/dist"),
+    path.resolve(process.cwd(), "public"),
+];
+const webDistPath = candidateWebPaths.find((p) => fs.existsSync(p));
+
+if (webDistPath) {
+    console.log(`[Static] Serving web frontend from: ${webDistPath}`);
+    app.use(express.static(webDistPath));
+}
+
 // Routes
 
 // Health check
@@ -33,6 +49,20 @@ app.get("/api/health", (_req: Request, res: Response) => {
 
 // Document endpoints
 app.use("/api/documents", documentRoutes);
+
+// SPA client-side fallback for any non-API GET request
+app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.method !== "GET" || req.path.startsWith("/api")) {
+        return next();
+    }
+    if (webDistPath) {
+        const indexPath = path.join(webDistPath, "index.html");
+        if (fs.existsSync(indexPath)) {
+            return res.sendFile(indexPath);
+        }
+    }
+    next();
+});
 
 // 404 catch-all
 app.use((_req: Request, res: Response) => {

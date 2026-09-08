@@ -4,7 +4,7 @@ import {
 } from './ai-extractor.service'
 
 export interface ClinicalEvaluationResult {
-  documentType: 'BP' | 'A1C' | 'HbA1c' | null
+  documentType: 'BP' | 'HbA1c' | null
   measure: string | null
   measureDate: string | null
   confidenceScore: number
@@ -25,8 +25,8 @@ export function evaluateBloodPressureRules(
       documentType: 'BP',
       measure: null,
       measureDate: aiResult.documentObservationDate || fallbackDate,
-      confidenceScore: 0,
-      status: 'FAILED',
+      confidenceScore: 0.5,
+      status: 'NEEDS_REVIEW',
       errorMessage: `Patient is ${aiResult.patientAge} years old. Clinical rule rejects BP measurements for patients under 18.`,
     }
   }

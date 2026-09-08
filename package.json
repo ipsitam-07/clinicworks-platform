@@ -1,0 +1,11 @@
+{
+  "name": "clinicworks-platform",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build:web": "npm --prefix apps/web run build",
+    "build:api": "npm --prefix apps/api run build",
+    "build": "npm run build:web && npm run build:api && mkdir -p apps/api/public && cp -r apps/web/dist/* apps/api/public/",
+    "start": "node apps/api/dist/server.js"
+  }
+}
