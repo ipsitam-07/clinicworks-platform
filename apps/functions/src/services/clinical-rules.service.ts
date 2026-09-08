@@ -12,6 +12,22 @@ export interface ClinicalEvaluationResult {
   errorMessage: string | null
 }
 
+interface ConfidenceFactors {
+  modelQuality: number
+  completeness: number
+  formatValidity: number
+  businessRuleFit: number
+}
+
+function computeConfidenceScore(factors: ConfidenceFactors): number {
+  const score =
+    0.25 * factors.modelQuality +
+    0.25 * factors.completeness +
+    0.25 * factors.formatValidity +
+    0.25 * factors.businessRuleFit
+  return Math.round(Math.min(1, Math.max(0, score)) * 100) / 100
+}
+
 /**
  * Evaluates Blood Pressure candidates against the assignment's clinical rules
  */
@@ -65,6 +81,8 @@ export function evaluateBloodPressureRules(
 
   // Single valid reading
   let chosenReading: RawAiBloodPressureCandidate
+  // 1.0 = unambiguous single reading, lower = tie-break/fallback logic had to kick in
+  let businessRuleFit = 1.0
 
   if (validCandidates.length === 1) {
     chosenReading = validCandidates[0]
@@ -80,30 +98,37 @@ export function evaluateBloodPressureRules(
 
       if (tiedReadings.length === 1) {
         chosenReading = tiedReadings[0]
+        businessRuleFit = 0.85 // multiple readings, but cleanly resolved by date
       } else {
         chosenReading = selectLowestBpReading(tiedReadings)
+        businessRuleFit = 0.6 // date tie, had to fall back to lowest-sum rule
       }
     } else {
       chosenReading = selectLowestBpReading(validCandidates)
+      businessRuleFit = 0.6 // dates missing/inconsistent, fell back to lowest-sum rule
     }
   }
 
   const measure = `${chosenReading.systolic}/${chosenReading.diastolic} mmHg`
   const measureDate = chosenReading.date || aiResult.documentObservationDate || fallbackDate
 
-  // Confidence and Review Status
-  let confidenceScore = Math.min(1.0, Math.max(0.1, Number(aiResult.extractionConfidence.toFixed(2))))
-  let status: 'SUCCESS' | 'NEEDS_REVIEW' | 'FAILED' = 'SUCCESS'
+  const modelQuality = Math.min(1, Math.max(0, aiResult.extractionConfidence)) *
+    (aiResult.extractionNotes ? 0.85 : 1)
+  const completeness = measureDate ? 1 : 2 / 3
+  const formatValidity =
+    chosenReading.systolic! >= 90 && chosenReading.systolic! <= 180 &&
+      chosenReading.diastolic! >= 60 && chosenReading.diastolic! <= 110
+      ? 1
+      : 0.6
 
-  if (!measureDate) {
-    status = 'NEEDS_REVIEW'
-    confidenceScore = Math.min(confidenceScore, 0.7)
-  } else if (validCandidates.length > 1 && !chosenReading.date) {
-    status = 'NEEDS_REVIEW'
-    confidenceScore = Math.min(confidenceScore, 0.75)
-  } else if (confidenceScore < 0.8) {
-    status = 'NEEDS_REVIEW'
-  }
+  const confidenceScore = computeConfidenceScore({
+    modelQuality,
+    completeness,
+    formatValidity,
+    businessRuleFit,
+  })
+  const status: 'SUCCESS' | 'NEEDS_REVIEW' | 'FAILED' =
+    confidenceScore >= 0.8 ? 'SUCCESS' : 'NEEDS_REVIEW'
 
   return {
     documentType: 'BP',
@@ -173,16 +198,22 @@ export function evaluateHbA1cRules(
   const measure = classification ? `${val}% (${classification})` : `${val}%`
   const measureDate = chosen.date || aiResult.documentObservationDate || fallbackDate
 
-  // Confidence and Review Status
-  let confidenceScore = Math.min(1.0, Math.max(0.1, Number(aiResult.extractionConfidence.toFixed(2))))
-  let status: 'SUCCESS' | 'NEEDS_REVIEW' | 'FAILED' = 'SUCCESS'
+  // Composite confidence score — model quality + field completeness +
+  // typical-range validity + business-rule resolution cleanliness.
+  const modelQuality = Math.min(1, Math.max(0, aiResult.extractionConfidence)) *
+    (aiResult.extractionNotes ? 0.85 : 1)
+  const completeness = measureDate ? 1 : 0.5
+  const formatValidity = val >= 4.0 && val <= 15.0 ? 1 : 0.6
+  const businessRuleFit = validCandidates.length === 1 ? 1.0 : 0.85
 
-  if (!measureDate) {
-    status = 'NEEDS_REVIEW'
-    confidenceScore = Math.min(confidenceScore, 0.7)
-  } else if (confidenceScore < 0.8) {
-    status = 'NEEDS_REVIEW'
-  }
+  const confidenceScore = computeConfidenceScore({
+    modelQuality,
+    completeness,
+    formatValidity,
+    businessRuleFit,
+  })
+  const status: 'SUCCESS' | 'NEEDS_REVIEW' | 'FAILED' =
+    confidenceScore >= 0.8 ? 'SUCCESS' : 'NEEDS_REVIEW'
 
   return {
     documentType: 'HbA1c',
