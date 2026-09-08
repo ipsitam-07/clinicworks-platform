@@ -1,21 +1,85 @@
-# Node.js with React
-# Build a Node.js project that uses React.
-# Add steps that analyze code, save build artifacts, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/javascript
-
 trigger:
-- main
+  branches:
+    include:
+      - main
 
 pool:
   vmImage: ubuntu-latest
 
-steps:
-- task: NodeTool@0
-  inputs:
-    versionSpec: '20.x'
-  displayName: 'Install Node.js'
+variables:
+  acrConnection: acr-clinicworks
+  azureRmConnection: azure-rm-clinicworks
+  acrLoginServer: clinicworksacr.azurecr.io
+  imageName: clinicworks-api
+  webAppName: app-clinicworks-platform-dev
+  functionAppName: func-clinicworks-dev
+  resourceGroup: rg-clinicworks-dev
 
-- script: |
-    npm install
-    npm run build
-  displayName: 'npm install and build'
+stages:
+  - stage: BuildAndPushApi
+    displayName: Build & push api image
+    jobs:
+      - job: Docker
+        steps:
+          - task: Docker@2
+            displayName: Login to ACR
+            inputs:
+              command: login
+              containerRegistry: $(acrConnection)
+
+          # --provenance=false --sbom=false — buildx's default attestation
+          # manifest breaks App Service's pull client (see incident notes).
+          - script: |
+              docker build --provenance=false --sbom=false \
+                -t $(acrLoginServer)/$(imageName):$(Build.BuildId) \
+                -t $(acrLoginServer)/$(imageName):latest .
+              docker push $(acrLoginServer)/$(imageName):$(Build.BuildId)
+              docker push $(acrLoginServer)/$(imageName):latest
+            displayName: Build and push image
+
+  - stage: DeployApi
+    displayName: Deploy api Web App
+    dependsOn: BuildAndPushApi
+    jobs:
+      - job: Deploy
+        steps:
+          - task: AzureCLI@2
+            displayName: Restart Web App (re-pulls latest image)
+            inputs:
+              azureSubscription: $(azureRmConnection)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az webapp restart -n $(webAppName) -g $(resourceGroup)
+
+  - stage: DeployFunctions
+    displayName: Deploy Function App
+    dependsOn: BuildAndPushApi
+    jobs:
+      - job: Deploy
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '20.x'
+
+          - script: |
+              cd apps/functions
+              npm ci
+              npm run build
+            displayName: Install & build functions
+
+          - task: ArchiveFiles@2
+            displayName: Zip functions output
+            inputs:
+              rootFolderOrFile: apps/functions
+              includeRootFolder: false
+              archiveType: zip
+              archiveFile: $(Build.ArtifactStagingDirectory)/functions.zip
+
+          - task: AzureFunctionApp@2
+            displayName: Deploy to Azure Function App
+            inputs:
+              azureSubscription: $(azureRmConnection)
+              appType: functionAppLinux
+              appName: $(functionAppName)
+              package: $(Build.ArtifactStagingDirectory)/functions.zip
