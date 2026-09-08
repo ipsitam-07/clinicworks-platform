@@ -9,6 +9,8 @@ node_modules/
 # Build output
 dist/
 build/
+apps/api/public/
+*.zip
 
 # Logs
 *.log
@@ -22,3 +24,7 @@ npm-debug.log*
 
 # Local uploads
 uploads/
+
+# Azure Functions secrets
+local.settings*.json
+apps/functions/local.settings*.json

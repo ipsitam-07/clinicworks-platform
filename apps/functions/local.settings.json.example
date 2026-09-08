@@ -1,0 +1,17 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "AZURE_STORAGE_CONNECTION_STRING": "",
+    "AZURE_STORAGE_CONTAINER_NAME": "documents",
+    "DB_HOST": "",
+    "DB_PORT": "",
+    "DB_NAME": "",
+    "DB_USER": "",
+    "DB_PASSWORD": "",
+    "AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT": "",
+    "AZURE_DOCUMENT_INTELLIGENCE_KEY": "",
+    "OPENAI_API_KEY": ""
+  }
+}
