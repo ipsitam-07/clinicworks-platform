@@ -198,8 +198,7 @@ export function evaluateHbA1cRules(
   const measure = classification ? `${val}% (${classification})` : `${val}%`
   const measureDate = chosen.date || aiResult.documentObservationDate || fallbackDate
 
-  // Composite confidence score — model quality + field completeness +
-  // typical-range validity + business-rule resolution cleanliness.
+
   const modelQuality = Math.min(1, Math.max(0, aiResult.extractionConfidence)) *
     (aiResult.extractionNotes ? 0.85 : 1)
   const completeness = measureDate ? 1 : 0.5
