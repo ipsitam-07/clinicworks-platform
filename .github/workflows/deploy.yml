@@ -1,0 +1,95 @@
+name: Deploy ClinicWorks
+
+on:
+  push:
+    branches: [main]
+
+env:
+  ACR_LOGIN_SERVER: clinicworksacr.azurecr.io
+  IMAGE_NAME: clinicworks-api
+  WEB_APP_NAME: app-clinicworks-platform-dev
+  FUNCTION_APP_NAME: func-clinicworks-dev
+  RESOURCE_GROUP: rg-clinicworks-dev
+
+jobs:
+  build-and-push-api:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: ACR login
+        run: az acr login -n clinicworksacr
+
+      # --provenance=false --sbom=false — buildx's default attestation manifest
+      # breaks App Service's pull client (see incident notes).
+      - name: Build and push image
+        run: |
+          docker build --provenance=false --sbom=false \
+            -t $ACR_LOGIN_SERVER/$IMAGE_NAME:${{ github.sha }} \
+            -t $ACR_LOGIN_SERVER/$IMAGE_NAME:latest .
+          docker push $ACR_LOGIN_SERVER/$IMAGE_NAME:${{ github.sha }}
+          docker push $ACR_LOGIN_SERVER/$IMAGE_NAME:latest
+
+  deploy-api:
+    runs-on: ubuntu-latest
+    needs: build-and-push-api
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Restart Web App (re-pulls latest image)
+        run: az webapp restart -n $WEB_APP_NAME -g $RESOURCE_GROUP
+
+  deploy-functions:
+    runs-on: ubuntu-latest
+    needs: build-and-push-api
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install & build functions
+        working-directory: apps/functions
+        run: |
+          npm ci
+          npm run build
+
+      - name: Zip functions output
+        working-directory: apps/functions
+        run: zip -r ../../functions.zip . -x "*.git*"
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Function App
+        run: |
+          az functionapp deployment source config-zip \
+            --src functions.zip \
+            -n $FUNCTION_APP_NAME \
+            -g $RESOURCE_GROUP
