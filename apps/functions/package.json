@@ -9,7 +9,8 @@
     "prestart": "npm run build",
     "start": "func start",
     "dev": "tsx watch src/worker.ts",
-    "process:pending": "tsx src/runOnce.ts"
+    "process:pending": "tsx src/runOnce.ts",
+    "selfcheck": "tsx src/services/clinical-rules.selfcheck.ts"
   },
   "dependencies": {
     "@azure-rest/ai-document-intelligence": "^1.1.0",
