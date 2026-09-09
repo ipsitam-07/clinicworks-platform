@@ -1,7 +1,7 @@
 /**
- * Application Insights telemetry initializer.
+ * Application Insights telemetry initializer for applicationinsights v3.x (OpenTelemetry-based).
  */
-import appInsights from "applicationinsights";
+import { useAzureMonitor } from "applicationinsights";
 
 export function initTelemetry(): void {
     const connectionString = process.env.APPLICATIONINSIGHTS_CONNECTION_STRING;
@@ -11,14 +11,20 @@ export function initTelemetry(): void {
         return;
     }
 
-    appInsights
-        .setup(connectionString)
-        .setAutoCollectRequests(true)        // Every HTTP request to the API
-        .setAutoCollectDependencies(true)    // Outbound calls: Postgres, Blob, Document Intelligence, OpenAI
-        .setAutoCollectExceptions(true)      // Unhandled exceptions
-        .setAutoCollectConsole(true, true)   // console.log/error - AppTraces in Log Analytics
-        .setSendLiveMetrics(false)           // Enable in portal ad-hoc; not needed always-on
-        .start();
+    try {
+        useAzureMonitor({
+            azureMonitorExporterOptions: {
+                connectionString,
+            },
+            instrumentationOptions: {
+                console: { enabled: true },
+                http: { enabled: true },
+            },
+            enableAutoCollectExceptions: true,
+        });
 
-    console.log("[AppInsights] Telemetry enabled — sending to Application Insights");
+        console.log("[AppInsights] Telemetry enabled — sending to Application Insights via Azure Monitor OpenTelemetry");
+    } catch (err) {
+        console.error("[AppInsights] Failed to initialize Application Insights:", err);
+    }
 }
