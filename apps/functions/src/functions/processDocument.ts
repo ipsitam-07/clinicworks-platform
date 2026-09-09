@@ -18,11 +18,11 @@ import {
 export async function processDocumentById(
   documentId: string,
   context?: InvocationContext,
-  callerName: string = 'direct'
+  callerName: string = 'logic-app-http'
 ) {
   context?.log(`[processDocument] Caller "${callerName}" attempting to claim document ID: ${documentId}`)
 
-  // 1. Atomic claim check 
+  // 1. Atomic claim check
   const doc = await claimDocumentForProcessing(documentId, callerName)
   if (!doc) {
     context?.log(
@@ -86,45 +86,8 @@ export async function processDocumentById(
   }
 }
 
-app.storageBlob('processDocumentBlob', {
-  path: 'documents/{name}',
-  connection: 'AzureWebJobsStorage',
-  handler: async (blob: Buffer, context: InvocationContext) => {
-    const blobName = (context.triggerMetadata?.name as string) || ''
-    context.log(`[Blob Trigger] New blob detected: ${blobName}. Waiting 15s for primary orchestrator (Logic App)...`)
-
-    // Wait 15 seconds to allow Logic App to claim the document first
-    await new Promise((resolve) => setTimeout(resolve, 15000))
-
-    try {
-      let doc = await findDocumentByBlobName(blobName)
-
-      if (!doc) {
-        doc = await findDocumentByBlobName(`documents/${blobName}`)
-      }
-
-      if (!doc) {
-        context.warn(`[Blob Trigger] No matching document record found for blob: ${blobName}`)
-        return
-      }
-
-      if (doc.processing_status !== 'PROCESSING' || doc.claimed_at) {
-        context.log(
-          `[Blob Trigger] Document "${blobName}" (${doc.id}) has already been handled (status: ${doc.processing_status}, claimed_at: ${doc.claimed_at}). Skipping duplicate processing.`
-        )
-        return
-      }
-
-      context.log(`[Blob Trigger] Document "${blobName}" (${doc.id}) was not claimed by Logic App. Triggering fallback processing...`)
-      await processDocumentById(doc.id, context, 'blob-trigger-fallback')
-    } catch (err) {
-      context.error(`[Blob Trigger Error] Processing failed for ${blobName}:`, err)
-    }
-  },
-})
-
 /**
- * 2. HTTP Trigger: Primary endpoint invoked by Azure Logic Apps workflow (and manual/test calls)
+ * HTTP Trigger
  */
 app.http('processDocumentHttp', {
   methods: ['POST'],
