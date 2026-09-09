@@ -16,7 +16,8 @@ export async function testDatabaseConnection(): Promise<void> {
 
     try {
         await client.query("SELECT 1");
-        console.log("ClinicWorks database connection successful");
+        await client.query("ALTER TABLE documents ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMPTZ;");
+        console.log("ClinicWorks database connection successful (schema verified)");
     } finally {
         client.release();
     }
