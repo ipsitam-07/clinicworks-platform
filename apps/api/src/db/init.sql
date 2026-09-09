@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS documents (
     processed_by VARCHAR(100),
 
     processing_status VARCHAR(30) NOT NULL,
+    claimed_at TIMESTAMPTZ,
 
     error_message TEXT,
     confidence_score NUMERIC(5, 4),
@@ -23,3 +24,4 @@ CREATE TABLE IF NOT EXISTS documents (
 
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS blob_name TEXT;
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS blob_url  TEXT;
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMPTZ;

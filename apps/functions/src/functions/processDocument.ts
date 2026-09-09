@@ -7,61 +7,94 @@ import {
 import { downloadBlobToBuffer } from '../services/storage.service'
 import { extractClinicalDataFromPdf } from '../services/extractor.service'
 import {
-  findDocumentById,
   findDocumentByBlobName,
   updateDocumentResult,
+  claimDocumentForProcessing,
 } from '../services/db.service'
 
 /**
- * Core processing routine for a single document
+ * Core processing routine for a single document.
  */
 export async function processDocumentById(
   documentId: string,
-  context?: InvocationContext
+  context?: InvocationContext,
+  callerName: string = 'direct'
 ) {
-  context?.log(`[processDocument] Starting processing for document ID: ${documentId}`)
+  context?.log(`[processDocument] Caller "${callerName}" attempting to claim document ID: ${documentId}`)
 
-  const doc = await findDocumentById(documentId)
+  // 1. Atomic claim check 
+  const doc = await claimDocumentForProcessing(documentId, callerName)
   if (!doc) {
-    throw new Error(`Document with ID ${documentId} not found in database`)
+    context?.log(
+      `[processDocument] Document ${documentId} is already claimed by another trigger or not in PROCESSING status. Skipping.`
+    )
+    return null
   }
+
+  context?.log(`[processDocument] Lock acquired by "${callerName}" for document "${doc.file_name}" (${documentId}). Processing...`)
 
   if (!doc.blob_name) {
-    throw new Error(`Document ${documentId} has no blob_name associated`)
+    const errorMsg = `Document ${documentId} has no blob_name associated`
+    await updateDocumentResult(documentId, {
+      documentType: null,
+      measure: null,
+      measureDate: null,
+      confidenceScore: null,
+      status: 'FAILED',
+      errorMessage: errorMsg,
+      processedBy: callerName,
+    })
+    throw new Error(errorMsg)
   }
 
-  context?.log(`[processDocument] Downloading blob: ${doc.blob_name}`)
-  const pdfBuffer = await downloadBlobToBuffer(doc.blob_name)
+  try {
+    context?.log(`[processDocument] Downloading blob: ${doc.blob_name}`)
+    const pdfBuffer = await downloadBlobToBuffer(doc.blob_name)
 
-  context?.log(`[processDocument] Extracting clinical measurements for "${doc.file_name}"`)
-  const extraction = await extractClinicalDataFromPdf(pdfBuffer, doc.file_name)
+    context?.log(`[processDocument] Extracting clinical measurements for "${doc.file_name}"`)
+    const extraction = await extractClinicalDataFromPdf(pdfBuffer, doc.file_name)
 
-  context?.log(
-    `[processDocument] Extracted: type=${extraction.documentType}, measure=${extraction.measure}, score=${extraction.confidenceScore}, status=${extraction.status}`
-  )
+    context?.log(
+      `[processDocument] Extracted: type=${extraction.documentType}, measure=${extraction.measure}, score=${extraction.confidenceScore}, status=${extraction.status}`
+    )
 
-  const updatedDoc = await updateDocumentResult(documentId, {
-    documentType: extraction.documentType,
-    measure: extraction.measure,
-    measureDate: extraction.measureDate,
-    confidenceScore: extraction.confidenceScore,
-    status: extraction.status,
-    errorMessage: extraction.errorMessage,
-  })
+    const updatedDoc = await updateDocumentResult(documentId, {
+      documentType: extraction.documentType,
+      measure: extraction.measure,
+      measureDate: extraction.measureDate,
+      confidenceScore: extraction.confidenceScore,
+      status: extraction.status,
+      errorMessage: extraction.errorMessage,
+      processedBy: callerName,
+    })
 
-  context?.log(`[processDocument] Successfully updated document ${documentId}`)
-  return updatedDoc
+    context?.log(`[processDocument] Successfully completed processing for document ${documentId}`)
+    return updatedDoc
+  } catch (err) {
+    const errorMessage = (err as Error).message
+    context?.error(`[processDocument] Processing failed for document ${documentId}:`, errorMessage)
+    await updateDocumentResult(documentId, {
+      documentType: null,
+      measure: null,
+      measureDate: null,
+      confidenceScore: null,
+      status: 'FAILED',
+      errorMessage,
+      processedBy: callerName,
+    })
+    throw err
+  }
 }
 
-/**
- * 1. Blob Trigger: Runs automatically when a PDF is uploaded to "documents" container
- */
 app.storageBlob('processDocumentBlob', {
   path: 'documents/{name}',
   connection: 'AzureWebJobsStorage',
   handler: async (blob: Buffer, context: InvocationContext) => {
     const blobName = (context.triggerMetadata?.name as string) || ''
-    context.log(`[Blob Trigger] New blob detected: ${blobName}`)
+    context.log(`[Blob Trigger] New blob detected: ${blobName}. Waiting 15s for primary orchestrator (Logic App)...`)
+
+    // Wait 15 seconds to allow Logic App to claim the document first
+    await new Promise((resolve) => setTimeout(resolve, 15000))
 
     try {
       let doc = await findDocumentByBlobName(blobName)
@@ -75,7 +108,15 @@ app.storageBlob('processDocumentBlob', {
         return
       }
 
-      await processDocumentById(doc.id, context)
+      if (doc.processing_status !== 'PROCESSING' || doc.claimed_at) {
+        context.log(
+          `[Blob Trigger] Document "${blobName}" (${doc.id}) has already been handled (status: ${doc.processing_status}, claimed_at: ${doc.claimed_at}). Skipping duplicate processing.`
+        )
+        return
+      }
+
+      context.log(`[Blob Trigger] Document "${blobName}" (${doc.id}) was not claimed by Logic App. Triggering fallback processing...`)
+      await processDocumentById(doc.id, context, 'blob-trigger-fallback')
     } catch (err) {
       context.error(`[Blob Trigger Error] Processing failed for ${blobName}:`, err)
     }
@@ -83,7 +124,7 @@ app.storageBlob('processDocumentBlob', {
 })
 
 /**
- * 2. HTTP Trigger: For manual / test invocation
+ * 2. HTTP Trigger: Primary endpoint invoked by Azure Logic Apps workflow (and manual/test calls)
  */
 app.http('processDocumentHttp', {
   methods: ['POST'],
@@ -106,7 +147,17 @@ app.http('processDocumentHttp', {
         }
       }
 
-      const result = await processDocumentById(docId, context)
+      const result = await processDocumentById(docId, context, 'logic-app-http')
+
+      if (!result) {
+        return {
+          status: 200,
+          jsonBody: {
+            status: 'already_claimed_or_processed',
+            message: `Document ${docId} is already claimed or processed by another trigger.`,
+          },
+        }
+      }
 
       return {
         status: 200,

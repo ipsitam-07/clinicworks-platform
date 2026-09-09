@@ -14,6 +14,40 @@ export const pool = new Pool({
   ssl: isAzure ? { rejectUnauthorized: false } : false,
 })
 
+let schemaEnsured = false
+export async function ensureClaimColumnExists() {
+  if (schemaEnsured) return
+  try {
+    await pool.query('ALTER TABLE documents ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMPTZ')
+    schemaEnsured = true
+  } catch (err) {
+    console.error('Warning: Failed to ensure claimed_at column exists:', err)
+  }
+}
+
+export async function claimDocumentForProcessing(id: string, claimedBy: string = 'azure-function') {
+  await ensureClaimColumnExists()
+  const res = await pool.query(
+    `UPDATE documents
+     SET claimed_at = NOW(),
+         processed_by = $2,
+         updated_at = NOW()
+     WHERE id = $1
+       AND processing_status = 'PROCESSING'
+       AND (claimed_at IS NULL OR claimed_at < NOW() - INTERVAL '5 minutes')
+     RETURNING *`,
+    [id, claimedBy]
+  )
+  return res.rows[0] ?? null
+}
+
+export async function releaseDocumentClaim(id: string) {
+  await pool.query(
+    `UPDATE documents SET claimed_at = NULL, updated_at = NOW() WHERE id = $1`,
+    [id]
+  )
+}
+
 export interface ExtractionUpdate {
   documentType: string | null
   measure: string | null
@@ -21,6 +55,7 @@ export interface ExtractionUpdate {
   confidenceScore: number | null
   status: 'SUCCESS' | 'NEEDS_REVIEW' | 'FAILED'
   errorMessage?: string | null
+  processedBy?: string | null
 }
 
 export async function findDocumentById(id: string) {
@@ -34,8 +69,12 @@ export async function findDocumentByBlobName(blobName: string) {
 }
 
 export async function getPendingDocuments() {
+  await ensureClaimColumnExists()
   const res = await pool.query(
-    "SELECT * FROM documents WHERE processing_status = 'PROCESSING' ORDER BY created_at ASC"
+    `SELECT * FROM documents
+     WHERE processing_status = 'PROCESSING'
+       AND (claimed_at IS NULL OR claimed_at < NOW() - INTERVAL '5 minutes')
+     ORDER BY created_at ASC`
   )
   return res.rows
 }
@@ -51,9 +90,9 @@ export async function updateDocumentResult(id: string, update: ExtractionUpdate)
       processing_status = $5,
       error_message = $6,
       date_processed = NOW(),
-      processed_by = 'azure-function',
+      processed_by = COALESCE($7, processed_by, 'azure-function'),
       updated_at = NOW()
-    WHERE id = $7
+    WHERE id = $8
     RETURNING *
   `
   const values = [
@@ -63,6 +102,7 @@ export async function updateDocumentResult(id: string, update: ExtractionUpdate)
     update.confidenceScore,
     update.status,
     update.errorMessage ?? null,
+    update.processedBy ?? 'azure-function',
     id,
   ]
 

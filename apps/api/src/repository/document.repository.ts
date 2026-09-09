@@ -11,6 +11,7 @@ export interface DocumentRecord {
     date_processed: string | null;
     processed_by: string | null;
     processing_status: string;
+    claimed_at?: string | null;
     error_message: string | null;
     confidence_score: number | null;
     created_at: string;
@@ -195,6 +196,7 @@ export async function resetDocumentForRetry(
         date_processed = NULL,
         processed_by = NULL,
         processing_status = 'PROCESSING',
+        claimed_at = NULL,
         error_message = NULL,
         confidence_score = NULL,
         updated_at = NOW()
