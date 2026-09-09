@@ -1,3 +1,6 @@
+import { initTelemetry } from "./config/telemetry";
+initTelemetry();
+
 import express, { Request, Response, NextFunction } from "express";
 import path from "path";
 import fs from "fs";
