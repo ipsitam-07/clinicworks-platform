@@ -16,8 +16,50 @@ variables:
   resourceGroup: rg-clinicworks-dev
 
 stages:
+  - stage: ValidateBicep
+    displayName: Validate Infrastructure (Bicep Lint & What-If)
+    jobs:
+      - job: LintAndPreview
+        steps:
+          - script: |
+              az bicep build --file infra/main.bicep
+            displayName: Lint and build Bicep templates
+
+          - task: AzureCLI@2
+            displayName: Run Bicep What-If preview
+            inputs:
+              azureSubscription: $(azureRmConnection)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az deployment group what-if \
+                  --resource-group $(resourceGroup) \
+                  --template-file infra/main.bicep \
+                  --parameters infra/main.parameters.dev.json \
+                  --parameters postgresAdminPassword="$(POSTGRES_PASSWORD)" openaiApiKey="$(OPENAI_API_KEY)"
+
+  - stage: ProvisionInfrastructure
+    displayName: Provision Azure Infrastructure (Bicep)
+    dependsOn: ValidateBicep
+    jobs:
+      - job: DeployBicep
+        steps:
+          - task: AzureCLI@2
+            displayName: Deploy Bicep templates
+            inputs:
+              azureSubscription: $(azureRmConnection)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az deployment group create \
+                  --resource-group $(resourceGroup) \
+                  --template-file infra/main.bicep \
+                  --parameters infra/main.parameters.dev.json \
+                  --parameters postgresAdminPassword="$(POSTGRES_PASSWORD)" openaiApiKey="$(OPENAI_API_KEY)"
+
   - stage: BuildAndPushApi
     displayName: Build & push api image
+    dependsOn: ProvisionInfrastructure
     jobs:
       - job: Docker
         steps:
