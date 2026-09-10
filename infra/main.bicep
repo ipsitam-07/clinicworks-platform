@@ -92,7 +92,7 @@ module ai 'modules/ai.bicep' = {
     location: location
     tags: commonTags
     documentIntelligenceName: docIntelName
-    skuName: environment == 'prod' ? 'S0' : 'F0'
+    skuName: 'S0'
   }
 }
 
