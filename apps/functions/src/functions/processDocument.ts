@@ -11,6 +11,7 @@ import {
   updateDocumentResult,
   claimDocumentForProcessing,
 } from '../services/db.service'
+import { sendDocumentAlertNotification } from '../services/notification.service'
 
 /**
  * Core processing routine for a single document.
@@ -44,6 +45,12 @@ export async function processDocumentById(
       errorMessage: errorMsg,
       processedBy: callerName,
     })
+    sendDocumentAlertNotification({
+      documentId,
+      fileName: doc.file_name,
+      status: 'FAILED',
+      errorMessage: errorMsg,
+    }).catch((notifErr) => context?.error('[processDocument] Failed to send alert notification:', notifErr))
     throw new Error(errorMsg)
   }
 
@@ -68,6 +75,18 @@ export async function processDocumentById(
       processedBy: callerName,
     })
 
+    if (extraction.status === 'NEEDS_REVIEW' || extraction.status === 'FAILED') {
+      sendDocumentAlertNotification({
+        documentId,
+        fileName: doc.file_name,
+        status: extraction.status,
+        documentType: extraction.documentType,
+        measure: extraction.measure,
+        confidenceScore: extraction.confidenceScore,
+        errorMessage: extraction.errorMessage,
+      }).catch((notifErr) => context?.error('[processDocument] Failed to send alert notification:', notifErr))
+    }
+
     context?.log(`[processDocument] Successfully completed processing for document ${documentId}`)
     return updatedDoc
   } catch (err) {
@@ -82,6 +101,12 @@ export async function processDocumentById(
       errorMessage,
       processedBy: callerName,
     })
+    sendDocumentAlertNotification({
+      documentId,
+      fileName: doc.file_name,
+      status: 'FAILED',
+      errorMessage,
+    }).catch((notifErr) => context?.error('[processDocument] Failed to send alert notification:', notifErr))
     throw err
   }
 }
@@ -94,10 +119,11 @@ app.http('processDocumentHttp', {
   authLevel: 'anonymous',
   route: 'process-document',
   handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
+    let docId: string | undefined
     try {
       const body = (await request.json()) as { documentId?: string; blobName?: string }
 
-      let docId = body.documentId
+      docId = body.documentId
       if (!docId && body.blobName) {
         const doc = await findDocumentByBlobName(body.blobName)
         docId = doc?.id
@@ -136,6 +162,11 @@ app.http('processDocumentHttp', {
         jsonBody: {
           status: 'error',
           message: (err as Error).message,
+          document: {
+            id: docId,
+            processing_status: 'FAILED',
+            error_message: (err as Error).message,
+          },
         },
       }
     }

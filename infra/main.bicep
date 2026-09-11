@@ -29,6 +29,12 @@ param postgresAdminPassword string
 @secure()
 param openaiApiKey string
 
+@description('Recipient email for document review and failure alerts')
+param alertRecipientEmail string = ''
+
+@description('Optional alert notification webhook URL')
+param alertNotificationWebhookUrl string = ''
+
 // Resource Naming Conventions
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var commonTags = {
@@ -141,6 +147,9 @@ module logicApp 'modules/logicapp.bicep' = {
     tags: commonTags
     logicAppName: logicAppName
     functionAppUrl: functionAppUrl
+    alertRecipientEmail: alertRecipientEmail
+    alertNotificationWebhookUrl: alertNotificationWebhookUrl
+    webAppUrl: 'https://${webAppName}.azurewebsites.net'
   }
 }
 

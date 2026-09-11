@@ -80,8 +80,13 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
     httpsOnly: true
     siteConfig: {
       linuxFxVersion: 'DOCKER|${acrLoginServer}/${imageName}:${imageTag}'
+      acrUseManagedIdentityCreds: true
       alwaysOn: true
       appSettings: [
+        {
+          name: 'DOCKER_REGISTRY_SERVER_URL'
+          value: 'https://${acrLoginServer}'
+        }
         {
           name: 'WEBSITES_PORT'
           value: '3000'
