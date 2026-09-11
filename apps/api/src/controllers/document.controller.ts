@@ -21,10 +21,18 @@ export async function createDocument(
             return;
         }
 
+        const processedBy =
+            (typeof req.body?.processed_by === "string" && req.body.processed_by.trim())
+                ? req.body.processed_by.trim()
+                : (typeof req.body?.processedBy === "string" && req.body.processedBy.trim())
+                    ? req.body.processedBy.trim()
+                    : "User";
+
         const document = await createDocumentService({
             fileName: req.file.originalname,
             fileBuffer: req.file.buffer,
             mimeType: req.file.mimetype,
+            processedBy,
         });
 
         res.status(201).json({

@@ -24,6 +24,7 @@ function formatFileSize(bytes: number): string {
 
 export function UploadModal({ isOpen, onClose, onUploaded }: UploadModalProps) {
   const [file, setFile] = useState<File | null>(null)
+  const [processedBy, setProcessedBy] = useState('User')
   const [dragging, setDragging] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [result, setResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
@@ -31,6 +32,7 @@ export function UploadModal({ isOpen, onClose, onUploaded }: UploadModalProps) {
 
   const resetState = useCallback(() => {
     setFile(null)
+    setProcessedBy('User')
     setDragging(false)
     setUploading(false)
     setResult(null)
@@ -88,7 +90,7 @@ export function UploadModal({ isOpen, onClose, onUploaded }: UploadModalProps) {
     setUploading(true)
     setResult(null)
     try {
-      const doc = await uploadDocument(file)
+      const doc = await uploadDocument(file, processedBy.trim() || 'User')
       setResult({
         type: 'success',
         message: `"${doc.file_name}" uploaded successfully. Processing started.`,
@@ -200,6 +202,21 @@ export function UploadModal({ isOpen, onClose, onUploaded }: UploadModalProps) {
                   </button>
                 </div>
               )}
+
+              <div className="upload-input-group">
+                <label htmlFor="processed-by-input" className="input-label">
+                  Processed By
+                </label>
+                <input
+                  id="processed-by-input"
+                  type="text"
+                  className="text-input"
+                  placeholder="e.g. User or Provider Name"
+                  value={processedBy}
+                  onChange={e => setProcessedBy(e.target.value)}
+                  disabled={uploading}
+                />
+              </div>
 
               {result?.type === 'error' && (
                 <div id="upload-error" className="feedback feedback-error">

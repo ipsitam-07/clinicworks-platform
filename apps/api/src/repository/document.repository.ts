@@ -24,6 +24,7 @@ export interface CreateDocumentInput {
     blob_name: string | null;
     blob_url: string | null;
     processing_status: string;
+    processed_by?: string | null;
 }
 
 export interface UpdateDocumentProcessingInput {
@@ -47,9 +48,10 @@ export async function createDocument(
         file_name,
         blob_name,
         blob_url,
-        processing_status
+        processing_status,
+        processed_by
       )
-      VALUES ($1, $2, $3, $4, $5)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING
         id,
         file_name,
@@ -71,7 +73,8 @@ export async function createDocument(
             document.file_name,
             document.blob_name,
             document.blob_url,
-            document.processing_status
+            document.processing_status,
+            document.processed_by ?? "User",
         ]
     );
 
@@ -194,7 +197,7 @@ export async function resetDocumentForRetry(
         measure = NULL,
         measure_date = NULL,
         date_processed = NULL,
-        processed_by = NULL,
+        processed_by = COALESCE(processed_by, 'User'),
         processing_status = 'PROCESSING',
         claimed_at = NULL,
         error_message = NULL,

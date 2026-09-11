@@ -16,6 +16,7 @@ export interface CreateDocumentServiceInput {
     fileName: string;
     fileBuffer: Buffer;
     mimeType: string;
+    processedBy?: string | null;
 }
 
 /**
@@ -67,6 +68,7 @@ export async function createDocumentService(input: CreateDocumentServiceInput) {
             blob_name: blobName,
             blob_url: blobUrl,
             processing_status: "PROCESSING",
+            processed_by: input.processedBy || "User",
         });
 
         // Trigger the Logic App workflow immediately upon upload

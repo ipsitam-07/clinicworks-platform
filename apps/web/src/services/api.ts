@@ -44,9 +44,10 @@ export async function fetchDocument(id: string): Promise<Document> {
 }
 
 /** Upload a PDF file — returns the created document record */
-export async function uploadDocument(file: File): Promise<Document> {
+export async function uploadDocument(file: File, processedBy: string = 'User'): Promise<Document> {
   const form = new FormData()
   form.append('file', file)
+  form.append('processed_by', processedBy)
 
   const res = await fetch(`${BASE}/documents`, {
     method: 'POST',

@@ -37,6 +37,7 @@ export async function testDatabaseConnection(): Promise<void> {
             ALTER TABLE documents ADD COLUMN IF NOT EXISTS blob_name TEXT;
             ALTER TABLE documents ADD COLUMN IF NOT EXISTS blob_url  TEXT;
             ALTER TABLE documents ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMPTZ;
+            ALTER TABLE documents ADD COLUMN IF NOT EXISTS processed_by VARCHAR(100);
         `);
         console.log("ClinicWorks database connection successful (schema verified)");
     } finally {

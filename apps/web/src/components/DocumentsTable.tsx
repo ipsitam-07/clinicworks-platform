@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Search, X, FolderOpen, FileText, RotateCw, AlertCircle } from 'lucide-react'
+import { Search, X, FolderOpen, FileText, RotateCw, AlertCircle, User as UserIcon } from 'lucide-react'
 import type { Document, ProcessingStatus } from '../services/api'
 import { StatusBadge } from './StatusBadge'
 import { ConfidenceBar } from './ConfidenceBar'
@@ -26,6 +26,7 @@ function formatDateTime(iso: string): string {
     day: '2-digit',
     month: 'short',
     hour: '2-digit',
+    minute: '2-digit',
   })
 }
 
@@ -60,7 +61,8 @@ export function DocumentsTable({
         search.trim() === '' ||
         doc.file_name.toLowerCase().includes(search.toLowerCase()) ||
         (doc.measure && doc.measure.toLowerCase().includes(search.toLowerCase())) ||
-        (doc.document_type && doc.document_type.toLowerCase().includes(search.toLowerCase()))
+        (doc.document_type && doc.document_type.toLowerCase().includes(search.toLowerCase())) ||
+        (doc.processed_by && doc.processed_by.toLowerCase().includes(search.toLowerCase()))
 
       const matchesStatus =
         statusFilter === 'ALL' || doc.processing_status === statusFilter
@@ -79,7 +81,7 @@ export function DocumentsTable({
             <input
               type="text"
               className="search-input"
-              placeholder="Search by filename, measure or type…"
+              placeholder="Search by filename, measure, type or processed by…"
               value={search}
               onChange={e => setSearch(e.target.value)}
               aria-label="Search documents"
@@ -177,7 +179,8 @@ export function DocumentsTable({
                 <th>Type</th>
                 <th>Measure</th>
                 <th>Measure Date</th>
-                <th>Uploaded</th>
+                <th>Date Processed</th>
+                <th>Processed By</th>
                 <th>Status</th>
                 <th>Confidence</th>
                 <th style={{ textAlign: 'right' }}>Actions</th>
@@ -229,8 +232,18 @@ export function DocumentsTable({
                   {/* Measure date */}
                   <td className="cell-muted">{formatDate(doc.measure_date)}</td>
 
-                  {/* Uploaded at */}
-                  <td className="cell-muted">{formatDateTime(doc.created_at)}</td>
+                  {/* Date processed */}
+                  <td className="cell-muted">
+                    {doc.date_processed ? formatDateTime(doc.date_processed) : formatDateTime(doc.created_at)}
+                  </td>
+
+                  {/* Processed By */}
+                  <td>
+                    <span className="cell-processed-by" title={doc.processed_by || 'User'}>
+                      <UserIcon size={12} strokeWidth={2} />
+                      <span>{doc.processed_by || 'User'}</span>
+                    </span>
+                  </td>
 
                   {/* Status + error */}
                   <td>
