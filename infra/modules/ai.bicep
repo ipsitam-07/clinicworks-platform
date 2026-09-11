@@ -25,6 +25,9 @@ resource documentIntelligence 'Microsoft.CognitiveServices/accounts@2023-05-01' 
   properties: {
     customSubDomainName: toLower(documentIntelligenceName)
     publicNetworkAccess: 'Enabled'
+    networkAcls: {
+      defaultAction: 'Allow'
+    }
   }
 }
 
