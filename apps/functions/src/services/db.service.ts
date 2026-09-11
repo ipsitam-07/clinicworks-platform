@@ -26,18 +26,18 @@ export async function ensureClaimColumnExists() {
   }
 }
 
-export async function claimDocumentForProcessing(id: string, claimedBy: string = 'azure-function') {
+export async function claimDocumentForProcessing(id: string, _claimedBy: string = 'azure-function') {
   await ensureClaimColumnExists()
   const res = await pool.query(
     `UPDATE documents
      SET claimed_at = NOW(),
-         processed_by = COALESCE(processed_by, $2, 'User'),
+         processed_by = COALESCE(processed_by, 'User'),
          updated_at = NOW()
      WHERE id = $1
        AND processing_status = 'PROCESSING'
        AND (claimed_at IS NULL OR claimed_at < NOW() - INTERVAL '5 minutes')
      RETURNING *`,
-    [id, claimedBy]
+    [id]
   )
   return res.rows[0] ?? null
 }

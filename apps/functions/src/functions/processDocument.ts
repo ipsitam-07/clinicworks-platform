@@ -43,7 +43,7 @@ export async function processDocumentById(
       confidenceScore: null,
       status: 'FAILED',
       errorMessage: errorMsg,
-      processedBy: callerName,
+      processedBy: doc.processed_by || 'User',
     })
     sendDocumentAlertNotification({
       documentId,
@@ -72,7 +72,7 @@ export async function processDocumentById(
       confidenceScore: extraction.confidenceScore,
       status: extraction.status,
       errorMessage: extraction.errorMessage,
-      processedBy: callerName,
+      processedBy: doc.processed_by || 'User',
     })
 
     if (extraction.status === 'NEEDS_REVIEW' || extraction.status === 'FAILED') {
@@ -99,7 +99,7 @@ export async function processDocumentById(
       confidenceScore: null,
       status: 'FAILED',
       errorMessage,
-      processedBy: callerName,
+      processedBy: doc.processed_by || 'User',
     })
     sendDocumentAlertNotification({
       documentId,
