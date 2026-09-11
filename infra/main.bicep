@@ -30,7 +30,7 @@ param postgresAdminPassword string
 param openaiApiKey string
 
 @description('Recipient email for document review and failure alerts')
-param alertRecipientEmail string = ''
+param alertRecipientEmail string = 'ipsitamoh07@gmail.com'
 
 @description('Optional alert notification webhook URL')
 param alertNotificationWebhookUrl string = ''

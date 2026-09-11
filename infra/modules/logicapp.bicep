@@ -19,16 +19,16 @@ param alertNotificationWebhookUrl string = ''
 @description('Web App base URL for dashboard links in email alerts')
 param webAppUrl string = ''
 
-// API Connection for Office 365 Outlook ("Send an email (V2)")
-resource office365Connection 'Microsoft.Web/connections@2016-06-01' = {
-  name: 'office365'
+// API Connection for Outlook.com ("Send an email (V2)")
+resource outlookConnection 'Microsoft.Web/connections@2016-06-01' = {
+  name: 'outlook'
   location: location
   tags: tags
   properties: {
-    displayName: 'Office 365 Outlook'
+    displayName: alertRecipientEmail != '' ? alertRecipientEmail : 'Outlook.com'
     customParameterValues: {}
     api: {
-      id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'office365')
+      id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'outlook')
     }
   }
 }
@@ -46,10 +46,10 @@ resource logicApp 'Microsoft.Logic/workflows@2019-05-01' = {
         '$connections': {
           type: 'Object'
           defaultValue: {
-            office365: {
-              connectionId: office365Connection.id
-              connectionName: 'office365'
-              id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'office365')
+            outlook: {
+              connectionId: outlookConnection.id
+              connectionName: 'outlook'
+              id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'outlook')
             }
           }
         }
@@ -108,6 +108,52 @@ resource logicApp 'Microsoft.Logic/workflows@2019-05-01' = {
           }
           runAfter: {}
         }
+        Handle_Function_Failure_Or_Timeout: {
+          type: 'If'
+          expression: {
+            or: [
+              {
+                equals: [
+                  '@actions(\'Call_Azure_Function\')?[\'status\']'
+                  'Failed'
+                ]
+              }
+              {
+                equals: [
+                  '@actions(\'Call_Azure_Function\')?[\'status\']'
+                  'TimedOut'
+                ]
+              }
+            ]
+          }
+          runAfter: {
+            Call_Azure_Function: [
+              'Failed'
+              'TimedOut'
+            ]
+          }
+          actions: {
+            Send_Function_Crash_Email: {
+              type: 'ApiConnection'
+              inputs: {
+                host: {
+                  connection: {
+                    name: '@parameters(\'$connections\')[\'outlook\'][\'connectionId\']'
+                  }
+                }
+                method: 'post'
+                path: '/v2/Mail'
+                body: {
+                  To: '@parameters(\'alertRecipientEmail\')'
+                  Subject: '@concat(\'ClinicWorks Error: Function Failed - \', coalesce(triggerBody()?[\'fileName\'], triggerBody()?[\'documentId\']))'
+                  Body: '<p><strong>ClinicWorks Function Failure</strong></p><p>Azure Function failed or timed out while processing: <strong>@{coalesce(triggerBody()?[\'fileName\'], triggerBody()?[\'documentId\'])}</strong></p><p><strong>Status:</strong> @{actions(\'Call_Azure_Function\')?[\'status\']}<br/><strong>Error:</strong> @{actions(\'Call_Azure_Function\')?[\'error\']?[\'message\']}</p><p><a href="@{parameters(\'webAppUrl\')}">Open Dashboard</a></p>'
+                  Importance: 'High'
+                }
+              }
+              runAfter: {}
+            }
+          }
+        }
         Condition_Needs_Review_Or_Failed: {
           type: 'If'
           expression: {
@@ -130,12 +176,17 @@ resource logicApp 'Microsoft.Logic/workflows@2019-05-01' = {
                   'error'
                 ]
               }
+              {
+                less: [
+                  '@float(coalesce(body(\'Call_Azure_Function\')?[\'document\']?[\'confidence_score\'], \'1.0\'))'
+                  '@float(0.8)'
+                ]
+              }
             ]
           }
           runAfter: {
             Call_Azure_Function: [
               'Succeeded'
-              'Failed'
             ]
           }
           actions: {
@@ -149,6 +200,7 @@ resource logicApp 'Microsoft.Logic/workflows@2019-05-01' = {
                 measure: '@body(\'Call_Azure_Function\')?[\'document\']?[\'measure\']'
                 confidenceScore: '@body(\'Call_Azure_Function\')?[\'document\']?[\'confidence_score\']'
                 errorMessage: '@coalesce(body(\'Call_Azure_Function\')?[\'document\']?[\'error_message\'], body(\'Call_Azure_Function\')?[\'message\'])'
+                extractedJson: '@body(\'Call_Azure_Function\')'
                 recipientEmail: '@parameters(\'alertRecipientEmail\')'
                 dashboardUrl: '@parameters(\'webAppUrl\')'
                 timestamp: '@utcNow()'
@@ -160,15 +212,15 @@ resource logicApp 'Microsoft.Logic/workflows@2019-05-01' = {
               inputs: {
                 host: {
                   connection: {
-                    name: '@parameters(\'$connections\')[\'office365\'][\'connectionId\']'
+                    name: '@parameters(\'$connections\')[\'outlook\'][\'connectionId\']'
                   }
                 }
                 method: 'post'
                 path: '/v2/Mail'
                 body: {
                   To: '@parameters(\'alertRecipientEmail\')'
-                  Subject: '@concat(\'[Action Required] ClinicWorks Alert: \', coalesce(body(\'Call_Azure_Function\')?[\'document\']?[\'file_name\'], triggerBody()?[\'fileName\']), \' is \', coalesce(body(\'Call_Azure_Function\')?[\'document\']?[\'processing_status\'], \'FAILED\'))'
-                  Body: '<div style="font-family: Arial, sans-serif; color: #222; max-width: 600px;"><h2 style="color: #c0392b;">ClinicWorks Document Processing Alert</h2><p>A document has completed processing and requires attention:</p><table style="border-collapse: collapse; width: 100%;"><tr style="border-bottom: 1px solid #ddd;"><td style="padding: 8px; font-weight: bold;">File Name</td><td style="padding: 8px;">@{coalesce(body(\'Call_Azure_Function\')?[\'document\']?[\'file_name\'], triggerBody()?[\'fileName\'])}</td></tr><tr style="border-bottom: 1px solid #ddd;"><td style="padding: 8px; font-weight: bold;">Status</td><td style="padding: 8px; font-weight: bold; color: #c0392b;">@{coalesce(body(\'Call_Azure_Function\')?[\'document\']?[\'processing_status\'], \'FAILED\')}</td></tr><tr style="border-bottom: 1px solid #ddd;"><td style="padding: 8px; font-weight: bold;">Document Type</td><td style="padding: 8px;">@{body(\'Call_Azure_Function\')?[\'document\']?[\'document_type\']}</td></tr><tr style="border-bottom: 1px solid #ddd;"><td style="padding: 8px; font-weight: bold;">Extracted Measure</td><td style="padding: 8px;">@{body(\'Call_Azure_Function\')?[\'document\']?[\'measure\']}</td></tr><tr style="border-bottom: 1px solid #ddd;"><td style="padding: 8px; font-weight: bold;">Confidence Score</td><td style="padding: 8px;">@{body(\'Call_Azure_Function\')?[\'document\']?[\'confidence_score\']}</td></tr><tr style="border-bottom: 1px solid #ddd;"><td style="padding: 8px; font-weight: bold;">Details / Error</td><td style="padding: 8px;">@{coalesce(body(\'Call_Azure_Function\')?[\'document\']?[\'error_message\'], body(\'Call_Azure_Function\')?[\'message\'])}</td></tr></table><p style="margin-top: 20px;"><a href="@{parameters(\'webAppUrl\')}" style="background-color: #0066cc; color: #fff; padding: 10px 16px; text-decoration: none; border-radius: 4px; display: inline-block;">Open ClinicWorks Dashboard</a></p></div>'
+                  Subject: '@concat(\'ClinicWorks Review: \', coalesce(body(\'Call_Azure_Function\')?[\'document\']?[\'file_name\'], triggerBody()?[\'fileName\']), \' - \', coalesce(body(\'Call_Azure_Function\')?[\'document\']?[\'processing_status\'], \'NEEDS_REVIEW\'))'
+                  Body: '<p><strong>ClinicWorks Document Alert</strong></p><p>Document <strong>@{coalesce(body(\'Call_Azure_Function\')?[\'document\']?[\'file_name\'], triggerBody()?[\'fileName\'])}</strong> requires manual review.</p><p><strong>Status:</strong> @{coalesce(body(\'Call_Azure_Function\')?[\'document\']?[\'processing_status\'], \'NEEDS_REVIEW\')}<br/><strong>Measure:</strong> @{body(\'Call_Azure_Function\')?[\'document\']?[\'measure\']}<br/><strong>Confidence:</strong> @{body(\'Call_Azure_Function\')?[\'document\']?[\'confidence_score\']}</p><p><a href="@{parameters(\'webAppUrl\')}">Open Dashboard</a></p>'
                   Importance: 'High'
                 }
               }
@@ -183,16 +235,19 @@ resource logicApp 'Microsoft.Logic/workflows@2019-05-01' = {
         Response: {
           type: 'Response'
           inputs: {
-            statusCode: 200
+            statusCode: '@if(equals(actions(\'Call_Azure_Function\')?[\'status\'], \'Succeeded\'), 200, 500)'
             headers: {
               'Content-Type': 'application/json'
             }
-            body: '@body(\'Call_Azure_Function\')'
+            body: '@coalesce(body(\'Call_Azure_Function\'), actions(\'Call_Azure_Function\'))'
           }
           runAfter: {
             Condition_Needs_Review_Or_Failed: [
               'Succeeded'
-              'Failed'
+              'Skipped'
+            ]
+            Handle_Function_Failure_Or_Timeout: [
+              'Succeeded'
               'Skipped'
             ]
           }
