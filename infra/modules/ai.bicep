@@ -12,7 +12,7 @@ param documentIntelligenceName string
   'F0'
   'S0'
 ])
-param skuName string = 'S0'
+param skuName string = 'F0'
 
 resource documentIntelligence 'Microsoft.CognitiveServices/accounts@2023-05-01' = {
   name: documentIntelligenceName

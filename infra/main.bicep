@@ -36,7 +36,6 @@ param alertRecipientEmail string = ''
 param alertNotificationWebhookUrl string = ''
 
 // Resource Naming Conventions
-var uniqueSuffix = uniqueString(resourceGroup().id)
 var commonTags = {
   Project: 'ClinicWorks'
   Environment: environment
@@ -45,10 +44,10 @@ var commonTags = {
 
 var logAnalyticsWorkspaceName = 'log-${prefix}-${environment}'
 var appInsightsName = 'appi-${prefix}-${environment}'
-var storageAccountName = 'st${prefix}${environment}${take(uniqueSuffix, 4)}'
-var postgresServerName = 'psql-${prefix}-${environment}-${take(uniqueSuffix, 4)}'
-var keyVaultName = 'kv-${prefix}-${environment}-${take(uniqueSuffix, 4)}'
-var docIntelName = 'di-${prefix}-${environment}-${take(uniqueSuffix, 4)}'
+var storageAccountName = 'st${prefix}${environment}'
+var postgresServerName = 'psql-${prefix}-${environment}'
+var keyVaultName = 'vault-${prefix}-${environment}'
+var docIntelName = 'docintel-${prefix}-${environment}'
 var functionAppName = 'func-${prefix}-${environment}'
 var functionHostingPlanName = 'asp-func-${prefix}-${environment}'
 var webAppName = 'app-${prefix}-platform-${environment}'
@@ -98,7 +97,7 @@ module ai 'modules/ai.bicep' = {
     location: location
     tags: commonTags
     documentIntelligenceName: docIntelName
-    skuName: 'S0'
+    skuName: environment == 'prod' ? 'S0' : 'F0'
   }
 }
 
