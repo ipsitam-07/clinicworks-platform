@@ -44,7 +44,8 @@ resource logicApp 'Microsoft.Logic/workflows@2019-05-01' = {
       contentVersion: '1.0.0.0'
       parameters: {
         '$connections': {
-          value: {
+          type: 'Object'
+          defaultValue: {
             office365: {
               connectionId: office365Connection.id
               connectionName: 'office365'
