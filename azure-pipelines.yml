@@ -122,6 +122,6 @@ stages:
             displayName: Deploy to Azure Function App
             inputs:
               azureSubscription: $(azureRmConnection)
-              appType: functionAppLinux
+              appType: functionApp
               appName: $(functionAppName)
               package: $(Build.ArtifactStagingDirectory)/functions.zip
