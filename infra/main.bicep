@@ -189,7 +189,7 @@ module alerts 'modules/alerts.bicep' = {
     alertRecipientEmail: alertRecipientEmail
     appServicePlanId: webApp.outputs.appServicePlanId
     webAppId: webApp.outputs.webAppId
-    webAppName: webAppName
+    webAppHostName: webApp.outputs.defaultHostName
     appInsightsId: monitoring.outputs.appInsightsId
     appInsightsName: appInsightsName
     postgresServerId: postgres.outputs.serverId

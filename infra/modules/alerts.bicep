@@ -19,8 +19,15 @@ param appServicePlanId string
 @description('Resource ID of the Web App for HTTP 5xx metric')
 param webAppId string
 
-@description('Name of the Web App for URL construction')
-param webAppName string
+@description('Host name of the Web App for URL construction')
+param webAppHostName string = ''
+
+@description('Name of the Web App')
+param webAppName string = ''
+
+var targetHostName = !empty(webAppHostName)
+  ? webAppHostName
+  : (!empty(webAppName) ? '${webAppName}.azurewebsites.net' : '')
 
 @description('Resource ID of Application Insights')
 param appInsightsId string
@@ -80,7 +87,7 @@ resource webTest 'Microsoft.Insights/webtests@2022-06-15' = {
       }
     ]
     Request: {
-      RequestUrl: 'https://${webAppName}.azurewebsites.net/api/health'
+      RequestUrl: 'https://${targetHostName}/api/health'
       HttpVerb: 'GET'
       ParseDependentRequests: false
     }
