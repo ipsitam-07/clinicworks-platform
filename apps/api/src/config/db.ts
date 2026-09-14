@@ -6,7 +6,7 @@ export const pool = new Pool({
     host: process.env.DB_HOST || "localhost",
     port: Number(process.env.DB_PORT) || 5432,
     database: process.env.DB_NAME || "clinicworks",
-    user: process.env.DB_USER || "clinicworks",
+    user: process.env.DB_USER || "clinicadmin",
     password: process.env.DB_PASSWORD || "clinicworks_dev",
     ssl: isAzure ? { rejectUnauthorized: false } : false,
 });
@@ -18,7 +18,7 @@ export async function testDatabaseConnection(): Promise<void> {
         await client.query("SELECT 1");
         await client.query(`
             CREATE TABLE IF NOT EXISTS documents (
-                id UUID PRIMARY KEY,
+                id VARCHAR(50) PRIMARY KEY,
                 file_name VARCHAR(255) NOT NULL,
                 blob_name TEXT,
                 blob_url  TEXT,
@@ -34,6 +34,7 @@ export async function testDatabaseConnection(): Promise<void> {
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             );
+            ALTER TABLE documents ALTER COLUMN id TYPE VARCHAR(50) USING id::text;
             ALTER TABLE documents ADD COLUMN IF NOT EXISTS blob_name TEXT;
             ALTER TABLE documents ADD COLUMN IF NOT EXISTS blob_url  TEXT;
             ALTER TABLE documents ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMPTZ;

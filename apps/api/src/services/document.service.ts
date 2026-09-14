@@ -7,8 +7,6 @@ import {
     type UpdateDocumentProcessingInput,
 } from "../repository/document.repository";
 import { uploadFileToBlob, deleteFileFromBlob } from "./storage.service";
-import { randomUUID } from "crypto";
-
 
 // Types
 
@@ -49,10 +47,21 @@ function triggerProcessingWorkflow(documentId: string, fileName?: string) {
     }
 }
 
+async function generateUnique4DigitId(): Promise<string> {
+    for (let i = 0; i < 25; i++) {
+        const candidate = Math.floor(1000 + Math.random() * 9000).toString();
+        const existing = await findDocumentById(candidate);
+        if (!existing) {
+            return candidate;
+        }
+    }
+    return Math.floor(1000 + Math.random() * 9000).toString();
+}
+
 // Create
 
 export async function createDocumentService(input: CreateDocumentServiceInput) {
-    const documentId = randomUUID();
+    const documentId = await generateUnique4DigitId();
 
     const { blobName, blobUrl } = await uploadFileToBlob(
         documentId,

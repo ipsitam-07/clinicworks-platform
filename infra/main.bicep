@@ -85,7 +85,7 @@ module postgres 'modules/postgres.bicep' = {
     location: location
     tags: commonTags
     serverName: postgresServerName
-    administratorLogin: 'clinicworks'
+    administratorLogin: 'clinicadmin'
     administratorLoginPassword: postgresAdminPassword
     databaseName: 'clinicworks'
     skuName: environment == 'prod' ? 'Standard_D2ds_v5' : 'Standard_B1ms'

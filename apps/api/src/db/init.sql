@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS documents (
-    id UUID PRIMARY KEY,
+    id VARCHAR(50) PRIMARY KEY,
     file_name VARCHAR(255) NOT NULL,
 
     blob_name TEXT,
