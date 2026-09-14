@@ -6,7 +6,7 @@ import path from "path";
 import fs from "fs";
 import "dotenv/config";
 
-import { testDatabaseConnection } from "./config/db";
+import { testDatabaseConnection, checkDatabaseHealth } from "./config/db";
 import { ensureContainerExists } from "./services/storage.service";
 import documentRoutes from "./routes/document.routes";
 
@@ -41,12 +41,20 @@ if (webDistPath) {
 
 // Routes
 
-// Health check
-app.get("/api/health", (_req: Request, res: Response) => {
-    res.json({
-        status: "ok",
+// Health check with database connectivity ping
+app.get("/api/health", async (_req: Request, res: Response) => {
+    const dbHealth = await checkDatabaseHealth();
+    const isHealthy = dbHealth.ok;
+
+    res.status(isHealthy ? 200 : 503).json({
+        status: isHealthy ? "ok" : "degraded",
         service: "clinicworks-api",
         timestamp: new Date().toISOString(),
+        database: {
+            status: dbHealth.ok ? "connected" : "disconnected",
+            latencyMs: dbHealth.latencyMs,
+            ...(dbHealth.error ? { error: dbHealth.error } : {}),
+        },
     });
 });
 
@@ -73,7 +81,6 @@ app.use((_req: Request, res: Response) => {
 });
 
 // Global error handler — catches errors thrown by middleware (e.g. multer file-type rejection)
-// Must have 4 arguments for Express to treat it as an error handler
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     console.error("Unhandled error:", err.message);
     res.status(400).json({

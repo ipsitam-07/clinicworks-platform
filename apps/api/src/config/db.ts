@@ -44,3 +44,13 @@ export async function testDatabaseConnection(): Promise<void> {
         client.release();
     }
 }
+
+export async function checkDatabaseHealth(): Promise<{ ok: boolean; latencyMs: number; error?: string }> {
+    const start = Date.now();
+    try {
+        await pool.query("SELECT 1");
+        return { ok: true, latencyMs: Date.now() - start };
+    } catch (err) {
+        return { ok: false, latencyMs: Date.now() - start, error: (err as Error).message };
+    }
+}
