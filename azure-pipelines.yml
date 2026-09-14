@@ -36,7 +36,7 @@ stages:
                   --resource-group $(resourceGroup) \
                   --template-file infra/main.bicep \
                   --parameters infra/main.parameters.dev.json \
-                  --parameters postgresAdminPassword="$(POSTGRES_PASSWORD)" openaiApiKey="$(OPENAI_API_KEY)"
+                  --parameters postgresAdminPassword="$(DB_PASSWORD)" openaiApiKey="$(OPENAI_API_KEY)"
 
   - stage: ProvisionInfrastructure
     displayName: Provision Azure Infrastructure (Bicep)
@@ -55,7 +55,7 @@ stages:
                   --resource-group $(resourceGroup) \
                   --template-file infra/main.bicep \
                   --parameters infra/main.parameters.dev.json \
-                  --parameters postgresAdminPassword="$(POSTGRES_PASSWORD)" openaiApiKey="$(OPENAI_API_KEY)"
+                  --parameters postgresAdminPassword="$(DB_PASSWORD)" openaiApiKey="$(OPENAI_API_KEY)"
 
   - stage: BuildAndPushApi
     displayName: Build & push api image
