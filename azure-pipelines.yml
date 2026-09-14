@@ -57,6 +57,44 @@ stages:
                   --parameters infra/main.parameters.dev.json \
                   --parameters postgresAdminPassword="$(DB_PASSWORD)" openaiApiKey="$(OPENAI_API_KEY)"
 
+          - task: AzureCLI@2
+            displayName: Grant Key Vault Secrets User role to Managed Identities (idempotent)
+            inputs:
+              azureSubscription: $(azureRmConnection)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                KV_ID=$(az keyvault show \
+                  --name vault-clinicworks-dev \
+                  --resource-group $(resourceGroup) \
+                  --query id --output tsv)
+
+                WEB_PRINCIPAL=$(az webapp identity show \
+                  --name $(webAppName) \
+                  --resource-group $(resourceGroup) \
+                  --query principalId --output tsv)
+
+                FUNC_PRINCIPAL=$(az functionapp identity show \
+                  --name $(functionAppName) \
+                  --resource-group $(resourceGroup) \
+                  --query principalId --output tsv)
+
+                echo "Assigning Key Vault Secrets User to Web App..."
+                az role assignment create \
+                  --assignee "$WEB_PRINCIPAL" \
+                  --role "Key Vault Secrets User" \
+                  --scope "$KV_ID" 2>/dev/null \
+                  && echo "Web App: role assignment created." \
+                  || echo "Web App: role assignment already exists, skipping."
+
+                echo "Assigning Key Vault Secrets User to Function App..."
+                az role assignment create \
+                  --assignee "$FUNC_PRINCIPAL" \
+                  --role "Key Vault Secrets User" \
+                  --scope "$KV_ID" 2>/dev/null \
+                  && echo "Function App: role assignment created." \
+                  || echo "Function App: role assignment already exists, skipping."
+
   - stage: BuildAndPushApi
     displayName: Build & push api image
     dependsOn: ProvisionInfrastructure

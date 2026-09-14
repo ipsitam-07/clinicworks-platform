@@ -199,33 +199,6 @@ module alerts 'modules/alerts.bicep' = {
   }
 }
 
-// 10. Key Vault Secrets User Role Assignments for Managed Identities
-resource existingKeyVault 'Microsoft.KeyVault/vaults@2023-07-01' existing = {
-  name: keyVaultName
-}
-
-var keyVaultSecretsUserRoleId = '4633458b-17de-408a-b874-0445c86b69e6'
-
-resource webAppKeyVaultSecretUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(resourceGroup().id, webAppName, keyVaultSecretsUserRoleId)
-  scope: existingKeyVault
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsUserRoleId)
-    principalId: webApp.outputs.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-resource funcAppKeyVaultSecretUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(resourceGroup().id, functionAppName, keyVaultSecretsUserRoleId)
-  scope: existingKeyVault
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsUserRoleId)
-    principalId: functionApp.outputs.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
 // Outputs
 output webAppUrl string = 'https://${webApp.outputs.defaultHostName}'
 output functionAppUrl string = functionAppUrl
