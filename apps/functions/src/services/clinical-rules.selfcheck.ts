@@ -120,4 +120,19 @@ function baseAiResult(overrides: Partial<RawAiExtractionResult> = {}): RawAiExtr
   assert.strictEqual(result.measure, null)
 }
 
+// 8. HbA1c exactly 5.7% -> Prediabetes boundary test
+{
+  const result = evaluateHbA1cRules(
+    baseAiResult({
+      documentType: 'HbA1c',
+      hba1cReadings: [
+        { value: 5.7, date: '2026-07-30', isGoalOrTarget: false, isReferenceRange: false, isPastOrHistorical: false, rawTextSnippet: '' },
+      ],
+    }),
+    null
+  )
+  assert.strictEqual(result.measure, '5.7% (Prediabetes)')
+  assert.strictEqual(result.status, 'SUCCESS')
+}
+
 console.log('All clinical-rules self-checks passed.')

@@ -191,7 +191,7 @@ export function evaluateHbA1cRules(
   let classification = ''
   if (val > 5.9) {
     classification = 'Diabetes'
-  } else if (val > 5.7) {
+  } else if (val >= 5.7) {
     classification = 'Prediabetes'
   }
 
