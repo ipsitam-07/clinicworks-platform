@@ -3,6 +3,7 @@ import { Search, X, FolderOpen, FileText, RotateCw, AlertCircle, User as UserIco
 import type { Document, ProcessingStatus } from '../services/api'
 import { StatusBadge } from './StatusBadge'
 import { ConfidenceBar } from './ConfidenceBar'
+import { Tooltip } from './Tooltip'
 
 interface DocumentsTableProps {
   docs: Document[]
@@ -185,7 +186,7 @@ export function DocumentsTable({
                 <th>Processed By</th>
                 <th>Status</th>
                 <th>Confidence</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
+                <th style={{ textAlign: 'right', paddingRight: 24 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -207,13 +208,11 @@ export function DocumentsTable({
                       <div className="doc-icon-mini">
                         <FileText size={15} strokeWidth={2} />
                       </div>
-                      <div
-                        className="cell-filename"
-                        data-tooltip={doc.file_name}
-                        title={doc.file_name}
-                      >
-                        {doc.file_name}
-                      </div>
+                      <Tooltip content={doc.file_name}>
+                        <div className="cell-filename">
+                          {doc.file_name}
+                        </div>
+                      </Tooltip>
                     </div>
                   </td>
 
@@ -263,23 +262,19 @@ export function DocumentsTable({
                       <div className="status-badge-row">
                         <StatusBadge status={doc.processing_status as ProcessingStatus} />
                         {doc.error_message && (
-                          <span
-                            className="status-error-icon"
-                            data-tooltip={doc.error_message}
-                            title={doc.error_message}
-                          >
-                            <AlertCircle size={14} />
-                          </span>
+                          <Tooltip content={doc.error_message}>
+                            <span className="status-error-icon" aria-label="Error details">
+                              <AlertCircle size={14} />
+                            </span>
+                          </Tooltip>
                         )}
                       </div>
                       {doc.error_message && (
-                        <div
-                          className="error-message"
-                          data-tooltip={doc.error_message}
-                          title={doc.error_message}
-                        >
-                          {getShortErrorMessage(doc.error_message)}
-                        </div>
+                        <Tooltip content={doc.error_message}>
+                          <div className="error-message">
+                            {getShortErrorMessage(doc.error_message)}
+                          </div>
+                        </Tooltip>
                       )}
                     </div>
                   </td>
@@ -290,7 +285,7 @@ export function DocumentsTable({
                   </td>
 
                   {/* Actions */}
-                  <td style={{ textAlign: 'right' }}>
+                  <td style={{ textAlign: 'right', paddingRight: 24 }}>
                     {doc.processing_status === 'PROCESSING' ? (
                       <span className="cell-muted" style={{ fontSize: 12 }}>
                         Processing…
