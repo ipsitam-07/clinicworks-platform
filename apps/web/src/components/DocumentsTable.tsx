@@ -59,6 +59,7 @@ export function DocumentsTable({
     return docs.filter(doc => {
       const matchesSearch =
         search.trim() === '' ||
+        doc.id.toLowerCase().includes(search.toLowerCase()) ||
         doc.file_name.toLowerCase().includes(search.toLowerCase()) ||
         (doc.measure && doc.measure.toLowerCase().includes(search.toLowerCase())) ||
         (doc.document_type && doc.document_type.toLowerCase().includes(search.toLowerCase())) ||
@@ -81,7 +82,7 @@ export function DocumentsTable({
             <input
               type="text"
               className="search-input"
-              placeholder="Search by filename, measure, type or processed by…"
+              placeholder="Search by ID, filename, measure, type or processed by…"
               value={search}
               onChange={e => setSearch(e.target.value)}
               aria-label="Search documents"
@@ -175,6 +176,7 @@ export function DocumentsTable({
           <table>
             <thead>
               <tr>
+                <th>Document ID</th>
                 <th>Document</th>
                 <th>Type</th>
                 <th>Measure</th>
@@ -189,6 +191,16 @@ export function DocumentsTable({
             <tbody>
               {filteredDocs.map(doc => (
                 <tr key={doc.id} id={`doc-row-${doc.id}`}>
+                  {/* Document ID */}
+                  <td>
+                    <span
+                      className="cell-doc-id"
+                      title={doc.id}
+                    >
+                      {doc.id.length > 8 ? `${doc.id.slice(0, 8)}…` : doc.id}
+                    </span>
+                  </td>
+
                   {/* Filename */}
                   <td>
                     <div className="cell-doc-info">
@@ -279,13 +291,17 @@ export function DocumentsTable({
 
                   {/* Actions */}
                   <td style={{ textAlign: 'right' }}>
-                    {doc.processing_status === 'FAILED' ? (
+                    {doc.processing_status === 'PROCESSING' ? (
+                      <span className="cell-muted" style={{ fontSize: 12 }}>
+                        Processing…
+                      </span>
+                    ) : (
                       <button
                         id={`btn-retry-${doc.id}`}
                         className="btn btn-retry"
                         onClick={() => onRetry(doc.id)}
                         disabled={retryingId === doc.id}
-                        aria-label={`Retry processing for ${doc.file_name}`}
+                        aria-label={`Reprocess ${doc.file_name}`}
                       >
                         {retryingId === doc.id ? (
                           <>
@@ -299,12 +315,6 @@ export function DocumentsTable({
                           </>
                         )}
                       </button>
-                    ) : doc.processing_status === 'PROCESSING' ? (
-                      <span className="cell-muted" style={{ fontSize: 12 }}>
-                        Processing…
-                      </span>
-                    ) : (
-                      <span className="cell-muted">—</span>
                     )}
                   </td>
                 </tr>

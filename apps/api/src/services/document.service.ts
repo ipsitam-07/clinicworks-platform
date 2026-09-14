@@ -111,8 +111,8 @@ export async function retryDocumentService(id: string) {
         return null;
     }
 
-    if (document.processing_status !== "FAILED") {
-        throw new Error("Only failed documents can be retried");
+    if (document.processing_status === "PROCESSING") {
+        throw new Error("Document is currently being processed");
     }
 
     if (!document.blob_name) {

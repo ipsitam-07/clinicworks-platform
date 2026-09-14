@@ -144,7 +144,8 @@ export async function retryDocument(
 
         if (
             error instanceof Error &&
-            error.message === "Only failed documents can be retried"
+            (error.message === "Document is currently being processed" ||
+             error.message.includes("no file blob found"))
         ) {
             res.status(400).json({
                 status: "error",
