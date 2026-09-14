@@ -32,7 +32,7 @@ param postgresUser string = 'clinicworks'
 
 @description('PostgreSQL password')
 @secure()
-param postgresPassword string
+param postgresPassword string = ''
 
 @description('Azure Document Intelligence Endpoint')
 param docIntelEndpoint string = ''
@@ -43,7 +43,10 @@ param docIntelKey string = ''
 
 @description('Standard OpenAI API Key')
 @secure()
-param openaiApiKey string
+param openaiApiKey string = ''
+
+@description('Azure Key Vault name for secret references')
+param keyVaultName string = ''
 
 resource hostingPlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: hostingPlanName
@@ -109,11 +112,11 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         }
         {
           name: 'DB_PASSWORD'
-          value: postgresPassword
+          value: !empty(keyVaultName) ? '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=db-password)' : postgresPassword
         }
         {
           name: 'AZURE_STORAGE_CONNECTION_STRING'
-          value: storageAccountConnectionString
+          value: !empty(keyVaultName) ? '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=storage-connection-string)' : storageAccountConnectionString
         }
         {
           name: 'AZURE_STORAGE_CONTAINER_NAME'
@@ -125,11 +128,11 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         }
         {
           name: 'AZURE_DOCUMENT_INTELLIGENCE_KEY'
-          value: docIntelKey
+          value: !empty(keyVaultName) ? '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=doc-intelligence-key)' : docIntelKey
         }
         {
           name: 'OPENAI_API_KEY'
-          value: openaiApiKey
+          value: !empty(keyVaultName) ? '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=openai-api-key)' : openaiApiKey
         }
       ]
     }

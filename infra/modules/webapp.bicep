@@ -40,11 +40,14 @@ param postgresUser string = 'clinicworks'
 
 @description('PostgreSQL password')
 @secure()
-param postgresPassword string
+param postgresPassword string = ''
 
 @description('Azure Storage connection string')
 @secure()
-param storageConnectionString string
+param storageConnectionString string = ''
+
+@description('Azure Key Vault name for secret references')
+param keyVaultName string = ''
 
 @description('Azure Function App Base URL')
 param functionAppUrl string
@@ -113,11 +116,11 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
         }
         {
           name: 'DB_PASSWORD'
-          value: postgresPassword
+          value: !empty(keyVaultName) ? '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=db-password)' : postgresPassword
         }
         {
           name: 'AZURE_STORAGE_CONNECTION_STRING'
-          value: storageConnectionString
+          value: !empty(keyVaultName) ? '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=storage-connection-string)' : storageConnectionString
         }
         {
           name: 'AZURE_STORAGE_CONTAINER_NAME'
