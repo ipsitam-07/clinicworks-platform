@@ -144,3 +144,4 @@ output webAppId string = webApp.id
 output webAppName string = webApp.name
 output defaultHostName string = webApp.properties.defaultHostName
 output principalId string = webApp.identity.principalId
+output appServicePlanId string = appServicePlan.id

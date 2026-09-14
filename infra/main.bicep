@@ -53,6 +53,8 @@ var functionHostingPlanName = 'asp-func-${prefix}-${environment}'
 var webAppName = 'app-${prefix}-platform-${environment}'
 var webAppHostingPlanName = 'asp-web-${prefix}-${environment}'
 var logicAppName = 'logic-${prefix}-${environment}'
+var actionGroupName = 'ag-${prefix}-${environment}'
+var actionGroupShortName = 'cw${environment}'
 
 // 1. Monitoring (Log Analytics + App Insights)
 module monitoring 'modules/monitoring.bicep' = {
@@ -176,6 +178,25 @@ module webApp 'modules/webapp.bicep' = {
   }
 }
 
+// 9. Alerting & Server Metrics Monitoring
+module alerts 'modules/alerts.bicep' = {
+  name: 'alertsDeployment'
+  params: {
+    location: location
+    tags: commonTags
+    actionGroupName: actionGroupName
+    actionGroupShortName: actionGroupShortName
+    alertRecipientEmail: alertRecipientEmail
+    appServicePlanId: webApp.outputs.appServicePlanId
+    webAppId: webApp.outputs.webAppId
+    webAppName: webAppName
+    appInsightsId: monitoring.outputs.appInsightsId
+    appInsightsName: appInsightsName
+    postgresServerId: postgres.outputs.serverId
+    logAnalyticsWorkspaceId: monitoring.outputs.logAnalyticsWorkspaceId
+  }
+}
+
 // Outputs
 output webAppUrl string = 'https://${webApp.outputs.defaultHostName}'
 output functionAppUrl string = functionAppUrl
@@ -185,3 +206,4 @@ output logicAppCallbackUrl string = logicApp.outputs.callbackUrl
 output postgresServerFqdn string = postgres.outputs.serverFqdn
 output storageAccountName string = storage.outputs.storageAccountName
 output keyVaultName string = keyvault.outputs.vaultName
+output actionGroupId string = alerts.outputs.actionGroupId
