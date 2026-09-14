@@ -109,7 +109,7 @@ export function evaluateBloodPressureRules(
     }
   }
 
-  const measure = `${chosenReading.systolic}/${chosenReading.diastolic} mmHg`
+  const measure = `${chosenReading.systolic}/${chosenReading.diastolic}`
   const measureDate = chosenReading.date || aiResult.documentObservationDate || fallbackDate
 
   const modelQuality = Math.min(1, Math.max(0, aiResult.extractionConfidence)) *

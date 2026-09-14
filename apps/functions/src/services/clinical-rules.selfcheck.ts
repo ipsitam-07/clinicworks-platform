@@ -27,7 +27,7 @@ function baseAiResult(overrides: Partial<RawAiExtractionResult> = {}): RawAiExtr
     null
   )
   assert.strictEqual(result.status, 'SUCCESS')
-  assert.strictEqual(result.measure, '138/88 mmHg')
+  assert.strictEqual(result.measure, '138/88')
   assert.ok(result.confidenceScore >= 0.8, `expected high confidence, got ${result.confidenceScore}`)
 }
 
@@ -42,7 +42,7 @@ function baseAiResult(overrides: Partial<RawAiExtractionResult> = {}): RawAiExtr
     }),
     null
   )
-  assert.strictEqual(result.measure, '130/85 mmHg', 'should pick lowest-sum reading on date tie')
+  assert.strictEqual(result.measure, '130/85', 'should pick lowest-sum reading on date tie')
   assert.ok(result.confidenceScore < 1, 'tie-break should reduce confidence below max')
 }
 
