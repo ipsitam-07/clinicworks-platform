@@ -119,12 +119,16 @@ stages:
 
   - stage: DeployApi
     displayName: Deploy api Web App
-    dependsOn: BuildAndPushApi
+    # Depends on both stages: image must be ready AND RBAC must be granted
+    # so the restart forces Key Vault reference resolution to succeed.
+    dependsOn:
+      - BuildAndPushApi
+      - ProvisionInfrastructure
     jobs:
       - job: Deploy
         steps:
           - task: AzureCLI@2
-            displayName: Restart Web App (re-pulls latest image)
+            displayName: Restart Web App (re-pulls image + re-resolves KV references)
             inputs:
               azureSubscription: $(azureRmConnection)
               scriptType: bash
